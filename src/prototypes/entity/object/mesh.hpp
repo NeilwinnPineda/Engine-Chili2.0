@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../appearance/material.hpp"
+#include "../appearance/shadow.hpp"
 
 #include <cstdint>
 
@@ -21,4 +22,5 @@ struct MeshPrototype
     MeshHandle handle = 0;
     BuiltInMeshKind builtInKind = BuiltInMeshKind::None;
     MaterialPrototype material;
+    ShadowParticipationPrototype shadowParticipation;
 };

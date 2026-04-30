@@ -2,8 +2,6 @@
     color-scheme: dark;
     font-family: "Bahnschrift", "Segoe UI", sans-serif;
     --ink-0: #120d0a;
-    --ink-1: #1a1410;
-    --ink-2: #241c16;
     --line: rgba(255, 230, 208, 0.14);
     --text-strong: #fff5eb;
     --text-soft: #cfbea9;
@@ -30,7 +28,7 @@ body {
 }
 
 .studio-topbar {
-    min-height: 100vh;
+    min-height: 76px;
     display: grid;
     grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) auto;
     align-items: center;
@@ -76,6 +74,11 @@ h1 {
     background: rgba(255, 255, 255, 0.04);
 }
 
+.top-action:disabled {
+    opacity: 0.7;
+    cursor: wait;
+}
+
 .build-pill {
     padding: 0.32rem 0.7rem;
     font-size: 0.75rem;
@@ -93,6 +96,10 @@ h1 {
     font: inherit;
     cursor: pointer;
     transition: background-color 140ms ease, color 140ms ease, transform 140ms ease;
+}
+
+.file-action {
+    color: var(--text-strong);
 }
 
 .top-action:hover,

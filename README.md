@@ -10,8 +10,7 @@ Current targets:
 Current state:
 
 - `engine_sandbox` is now a thin harness under `apps/sandbox/src/`
-- the active progressive-hex scheduler now lives in engine-side controller/strategy/compiler code
-- the reusable moving-cube faux scene sampler now lives under `src/prototypes/systems/`
+- the front-facing app architecture is being iterated through real game trials, currently using `apps/pong`, `apps/space_invaders`, and `apps/_template` to pressure-test what app authors and players see and do
 - older one-off sandbox variants have been stripped down; `hex_observation` remains in archive while its debug types/logic migrate into `src/modules/diagnostics/`
 - frame submission now flows through `FramePrototype` from app-facing code into the renderer/GPU path
 - prototype families now live under:
@@ -24,8 +23,19 @@ Current state:
 - `RenderModule` now translates prototype requests into render-owned `RenderFrameData`
 - `GpuModule` and backend internals now consume render-owned data instead of prototype structs directly
 - the DX11 backend now realizes submitted frame contents into visible geometry
-- `ViewPrototype` can now carry light-ray prototypes into render-owned frame data
+- the active DX11 sandbox path now supports:
+  - point-light shading
+  - cubemap shadow scaffolding for the primary point light
+  - albedo texture sampling on built-in meshes
+  - prototype-driven material tint blending
+- `ViewPrototype` can carry light-ray prototypes into render-owned frame data, but that is not the active sandbox lane
 - in-window overlay text is currently a separate Win32 paint path, not renderer-owned text
+
+Architecture rule:
+
+- shared engine-side prototypes and built-in material defaults must stay generic
+- sandbox experiments, look-dev tweaks, and scene-specific authoring belong in sandbox-owned configuration or dedicated sandbox-specific prototype variants
+- app-side experimentation should not silently rewrite shared engine defaults just to prove a feature path
 
 Architecture snapshot:
 
@@ -57,6 +67,11 @@ Codex note:
 - In this repo, direct CMake commands are the reliable path.
 - Codex may need to run `cmake -S . -B build -G Ninja` and `cmake --build build` outside the sandbox because CMake try-compile/build subprocesses can stall or fail under sandboxed execution.
 
+GitHub build note:
+
+- the GitHub Actions Windows build should use the Visual Studio/MSVC toolchain with Ninja
+- this repo is heavily Win32/DX11/WebView2-oriented, so MSVC is the intended CI compiler lane rather than MSYS2/MinGW
+
 Sanitizer build:
 
 ```powershell
@@ -74,13 +89,16 @@ Studio status:
 
 Sandbox status:
 
-- the active sandbox is currently a progressive hex render-priority algorithm lab
-- the sandbox app now mainly configures `ProgressiveHexRenderController`, wires `MovingCubeSampleScenePrototype`, and writes debug logs
-- visualization is currently the pre-DX stable path: native progressive hex patches plus screen patches, not DX-owned region rerendering
-- the current sandbox scene is a CPU-sampled faux render target with moving rotating cubes
-- recursive setup maps occupied screen regions to center-pass chains and runtime scheduling refreshes deeper regions more often without clumping repeated passes together
-- center passes push placeholder values to constituent descendant cells, while deeper passes refine those placeholders through temporal blending
-- generic `ScreenPatch` and `ScreenHexPatch` renderer support remains the current screen-space debug/output lane
-- next renderer-facing milestone is still to expose the scheduler as renderer-owned work/update jobs instead of treating sampled colors as the final algorithm output
+- the active sandbox is a DX lighting/material lab under `apps/sandbox/`
+- the sandbox app configures a lighting-lab scene preset, camera, and one primary point light
+- the current sandbox scene is a meter-based room with a rotating cube, stucco-backed material prototypes, and live exposure/light controls
+- current visible material support is:
+  - albedo texture sampling
+  - prototype color/tint blending over albedo
+  - roughness/specular controls lowered into the DX11 shader path
+- current shadow support is:
+  - first-pass cubemap shadow generation for the primary point light
+  - basic shadow sampling in the scene shader
+- normal and height maps are declared in material prototypes but are not yet part of final shading
 
 See [docs/README.md](docs/README.md) for the current architecture, feature list, and API inventory.

@@ -1,0 +1,238 @@
+#include "studio/studio_build_system.hpp"
+
+#include "studio/studio_project_system.hpp"
+
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+
+#include <windows.h>
+
+#ifdef CreateDirectory
+#undef CreateDirectory
+#endif
+
+#include <utility>
+#include <vector>
+
+namespace studio
+{
+    namespace
+    {
+        std::string JoinVirtualPath(const std::string& left, const std::string& right)
+        {
+            if (left.empty())
+            {
+                return right;
+            }
+
+            if (right.empty())
+            {
+                return left;
+            }
+
+            return left + "/" + right;
+        }
+
+        std::string QuoteArgument(const std::string& value)
+        {
+            return "\"" + value + "\"";
+        }
+
+        std::wstring ToWideString(const std::string& value)
+        {
+            return std::wstring(value.begin(), value.end());
+        }
+
+        std::string BuildWin32ErrorMessage(const std::string& action, DWORD errorCode)
+        {
+            return action + " failed with Win32 error " + std::to_string(static_cast<unsigned long>(errorCode)) + ".";
+        }
+    }
+
+    StudioBuildSystem::StudioBuildSystem()
+        : StudioBuildSystem(FileProxy{})
+    {
+    }
+
+    StudioBuildSystem::StudioBuildSystem(FileProxy files)
+        : m_files(std::move(files))
+    {
+    }
+
+    BuildAndRunProjectResult StudioBuildSystem::BuildAndRunProject(const BuildAndRunProjectRequest& request) const
+    {
+        BuildAndRunProjectResult result;
+        result.projectId = request.projectId;
+
+        if (request.projectId.empty() ||
+            !m_files.IsValidVirtualPath(request.projectId) ||
+            request.projectId.find('/') != std::string::npos ||
+            request.projectId.find('\\') != std::string::npos ||
+            request.projectId.find("..") != std::string::npos)
+        {
+            result.error = "A valid project id is required.";
+            return result;
+        }
+
+        std::string error;
+        if (!m_files.EnsureWorkspaceFolders(error))
+        {
+            result.error = error;
+            return result;
+        }
+
+        const std::string projectPath = StudioProjectSystem::GetProjectSourcePath(request.projectId);
+        const std::string buildPath = StudioProjectSystem::GetProjectBuildPath(request.projectId);
+        result.logicalBuildPath = JoinVirtualPath(m_files.GetLogicalRoot(), buildPath);
+
+        if (!m_files.Exists(JoinVirtualPath(projectPath, "project.enginegame")))
+        {
+            result.error = "Project manifest is missing: " + JoinVirtualPath(m_files.GetLogicalRoot(), JoinVirtualPath(projectPath, "project.enginegame"));
+            return result;
+        }
+
+        if (!m_files.CreateDirectory(buildPath, error))
+        {
+            result.error = error;
+            return result;
+        }
+
+        const std::string physicalProjectPath = m_files.Resolve(projectPath);
+        const std::string physicalBuildPath = m_files.Resolve(buildPath);
+        if (physicalProjectPath.empty() || physicalBuildPath.empty())
+        {
+            result.error = "Failed to resolve project or build workspace path.";
+            return result;
+        }
+
+        const std::string configureCommand =
+            "cmake -S " + QuoteArgument(physicalProjectPath) +
+            " -B " + QuoteArgument(physicalBuildPath) +
+            " -G Ninja";
+        if (!RunProcessAndWait(configureCommand, result.configureExitCode, error))
+        {
+            result.error = error;
+            return result;
+        }
+
+        if (result.configureExitCode != 0)
+        {
+            result.error = "Project configure failed.";
+            return result;
+        }
+
+        const std::string buildCommand = "cmake --build " + QuoteArgument(physicalBuildPath);
+        if (!RunProcessAndWait(buildCommand, result.buildExitCode, error))
+        {
+            result.error = error;
+            return result;
+        }
+
+        if (result.buildExitCode != 0)
+        {
+            result.error = "Project build failed.";
+            return result;
+        }
+
+        result.executablePath = m_files.Resolve(JoinVirtualPath(buildPath, "bin/" + request.projectId + ".exe"));
+        if (result.executablePath.empty())
+        {
+            result.error = "Built executable path could not be resolved.";
+            return result;
+        }
+
+        if (request.runAfterBuild)
+        {
+            if (!LaunchProcess(QuoteArgument(result.executablePath), error))
+            {
+                result.error = error;
+                return result;
+            }
+        }
+
+        result.success = true;
+        result.message = request.runAfterBuild
+            ? "Built and launched project '" + request.projectId + "'."
+            : "Built project '" + request.projectId + "'.";
+        return result;
+    }
+
+    bool StudioBuildSystem::RunProcessAndWait(const std::string& commandLine, int& outExitCode, std::string& outError) const
+    {
+        std::wstring wideCommandLine = ToWideString(commandLine);
+        std::vector<wchar_t> commandBuffer(wideCommandLine.begin(), wideCommandLine.end());
+        commandBuffer.push_back(L'\0');
+
+        STARTUPINFOW startupInfo = {};
+        startupInfo.cb = sizeof(startupInfo);
+
+        PROCESS_INFORMATION processInfo = {};
+        if (!CreateProcessW(
+                nullptr,
+                commandBuffer.data(),
+                nullptr,
+                nullptr,
+                FALSE,
+                CREATE_NO_WINDOW,
+                nullptr,
+                nullptr,
+                &startupInfo,
+                &processInfo))
+        {
+            outError = BuildWin32ErrorMessage("CreateProcess", GetLastError());
+            return false;
+        }
+
+        WaitForSingleObject(processInfo.hProcess, INFINITE);
+
+        DWORD exitCode = 1;
+        if (!GetExitCodeProcess(processInfo.hProcess, &exitCode))
+        {
+            outError = BuildWin32ErrorMessage("GetExitCodeProcess", GetLastError());
+            CloseHandle(processInfo.hThread);
+            CloseHandle(processInfo.hProcess);
+            return false;
+        }
+
+        CloseHandle(processInfo.hThread);
+        CloseHandle(processInfo.hProcess);
+        outExitCode = static_cast<int>(exitCode);
+        return true;
+    }
+
+    bool StudioBuildSystem::LaunchProcess(const std::string& commandLine, std::string& outError) const
+    {
+        std::wstring wideCommandLine = ToWideString(commandLine);
+        std::vector<wchar_t> commandBuffer(wideCommandLine.begin(), wideCommandLine.end());
+        commandBuffer.push_back(L'\0');
+
+        STARTUPINFOW startupInfo = {};
+        startupInfo.cb = sizeof(startupInfo);
+
+        PROCESS_INFORMATION processInfo = {};
+        if (!CreateProcessW(
+                nullptr,
+                commandBuffer.data(),
+                nullptr,
+                nullptr,
+                FALSE,
+                0,
+                nullptr,
+                nullptr,
+                &startupInfo,
+                &processInfo))
+        {
+            outError = BuildWin32ErrorMessage("CreateProcess", GetLastError());
+            return false;
+        }
+
+        CloseHandle(processInfo.hThread);
+        CloseHandle(processInfo.hProcess);
+        return true;
+    }
+}

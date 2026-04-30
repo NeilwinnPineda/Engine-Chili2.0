@@ -17,6 +17,7 @@
         </div>
 
         <nav class="action-strip" aria-label="Primary tools">
+            <button class="top-action file-action" type="button" id="file-button">File</button>
             <button class="top-action is-active" type="button">Workspace</button>
             <button class="top-action" type="button">Scene</button>
             <button class="top-action" type="button">Inspect</button>
@@ -31,5 +32,28 @@
             <div class="status-chip muted">Top UI Docked</div>
         </div>
     </header>
+
+    <script>
+        (function () {
+            const button = document.getElementById("file-button");
+            if (!button) {
+                return;
+            }
+
+            button.addEventListener("click", function () {
+                button.disabled = true;
+                fetch("http://127.0.0.1:37620/studio/open-file-management")
+                    .then(function (response) {
+                        return response.json();
+                    })
+                    .catch(function () {
+                        return null;
+                    })
+                    .finally(function () {
+                        button.disabled = false;
+                    });
+            });
+        }());
+    </script>
 </body>
 </html>

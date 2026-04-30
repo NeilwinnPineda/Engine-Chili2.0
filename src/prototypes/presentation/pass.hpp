@@ -7,6 +7,7 @@
 enum class PassKind : unsigned char
 {
     Unknown = 0,
+    Shadow,
     Scene,
     Overlay,
     Composite

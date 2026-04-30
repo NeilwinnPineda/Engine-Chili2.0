@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <functional>
 #include <string>
 
 class EngineBridge;
@@ -17,6 +18,8 @@ struct HttpServerConfig
 class HttpServer
 {
 public:
+    using RequestHandler = std::function<bool(const std::string& path, std::string& outContentType, std::string& outBody)>;
+
     HttpServer();
     ~HttpServer();
 
@@ -27,11 +30,13 @@ public:
     bool IsRunning() const;
     const std::string& GetBaseUrl() const;
     const std::string& GetWebRootPath() const;
+    void SetRequestHandler(RequestHandler handler);
 
 private:
     bool m_running = false;
     std::string m_baseUrl;
     std::string m_webRootPath;
     std::string m_indexFilePath;
+    RequestHandler m_requestHandler;
     std::unique_ptr<HttpServerState> m_state;
 };

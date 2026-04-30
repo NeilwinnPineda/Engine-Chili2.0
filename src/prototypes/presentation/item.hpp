@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../entity/geometry/line.hpp"
 #include "../entity/object/object.hpp"
 #include "../entity/scene/infinite_plane.hpp"
 
@@ -9,10 +10,19 @@ enum class ItemKind : unsigned char
 {
     Unknown = 0,
     Object3D,
+    Line,
     InfinitePlane,
     Overlay2D,
     ScreenPatch,
     ScreenHexPatch
+};
+
+struct LineItemPrototype
+{
+    LinePrototype geometry;
+    std::uint32_t color = 0xFFFFFFFFu;
+    float thickness = 0.02f;
+    float fallbackLength = 1.0f;
 };
 
 struct ScreenPatchPrototype
@@ -29,6 +39,7 @@ struct ItemPrototype
 {
     ItemKind kind = ItemKind::Unknown;
     ObjectPrototype object3D;
+    LineItemPrototype line;
     InfinitePlanePrototype infinitePlane;
     ScreenPatchPrototype screenPatch;
 };

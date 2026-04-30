@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../../prototypes/entity/appearance/material.hpp"
 #include "../../prototypes/iprototype.hpp"
 
 #include <cstddef>
@@ -19,8 +18,6 @@ public:
     virtual bool UnregisterPrototype(PrototypeId prototypeId) = 0;
     virtual const IPrototype* GetPrototype(PrototypeId prototypeId) const = 0;
     virtual bool HasPrototype(PrototypeId prototypeId) const = 0;
-    virtual const MaterialPrototype* GetMaterialPrototype(const std::string& prototypeName) const = 0;
-    virtual bool HasMaterialPrototype(const std::string& prototypeName) const = 0;
 
     virtual PrototypeInstanceHandle CreateInstance(PrototypeId prototypeId) = 0;
     virtual bool DestroyInstance(PrototypeInstanceHandle instanceHandle) = 0;

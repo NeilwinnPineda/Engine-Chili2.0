@@ -4,10 +4,26 @@ add_executable(engine_studio
     src/studio_host.cpp
     src/bridge/engine_bridge.cpp
     src/commands/command_router.cpp
+    src/transport/http_server.cpp
+    src/studio/file_management_dialog.cpp
+    src/studio/new_project_dialog.cpp
+    src/studio/project_explorer_panel.cpp
+    src/studio/studio_build_system.cpp
+    src/studio/file_proxy.cpp
+    src/studio/studio_project_system.cpp
+    src/studio/studio_template_system.cpp
     src/studio_app.hpp
     src/studio_host.hpp
     src/bridge/engine_bridge.hpp
     src/commands/command_router.hpp
+    src/transport/http_server.hpp
+    src/studio/file_management_dialog.hpp
+    src/studio/new_project_dialog.hpp
+    src/studio/project_explorer_panel.hpp
+    src/studio/studio_build_system.hpp
+    src/studio/file_proxy.hpp
+    src/studio/studio_project_system.hpp
+    src/studio/studio_template_system.hpp
 )
 
 target_include_directories(engine_studio
@@ -20,6 +36,13 @@ target_link_libraries(engine_studio
     PRIVATE
         engine_core
 )
+
+if(WIN32)
+    target_link_libraries(engine_studio
+        PRIVATE
+            ws2_32
+    )
+endif()
 
 set(_engine_studio_webview2_loader_hint
     "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/Markdown/runtimes/win-x64/native/WebView2Loader.dll")

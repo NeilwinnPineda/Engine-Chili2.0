@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../../core/module.hpp"
-#include "../../prototypes/entity/appearance/material.hpp"
 #include "../../prototypes/iprototype.hpp"
 #include "iprototype_service.hpp"
 
@@ -25,8 +24,6 @@ public:
     bool UnregisterPrototype(PrototypeId prototypeId) override;
     const IPrototype* GetPrototype(PrototypeId prototypeId) const override;
     bool HasPrototype(PrototypeId prototypeId) const override;
-    const MaterialPrototype* GetMaterialPrototype(const std::string& prototypeName) const override;
-    bool HasMaterialPrototype(const std::string& prototypeName) const override;
 
     PrototypeInstanceHandle CreateInstance(PrototypeId prototypeId) override;
     bool DestroyInstance(PrototypeInstanceHandle instanceHandle) override;
@@ -54,6 +51,5 @@ private:
     PrototypeInstanceHandle m_nextInstanceHandle = 1U;
     mutable std::mutex m_mutex;
     std::unordered_map<PrototypeId, std::unique_ptr<IPrototype>> m_prototypes;
-    std::unordered_map<std::string, MaterialPrototype> m_materialPrototypes;
     std::unordered_map<PrototypeInstanceHandle, PrototypeInstanceRecord> m_instances;
 };

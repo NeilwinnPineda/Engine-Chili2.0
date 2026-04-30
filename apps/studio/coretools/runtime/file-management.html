@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File</title>
+    <link rel="stylesheet" href="./file-management.css">
+</head>
+<body>
+    <main class="file-shell">
+        <header class="file-header">
+            <p class="kicker">Studio</p>
+            <h1>File</h1>
+            <p class="subtitle">Create, open, and save game projects in the User workspace.</p>
+        </header>
+
+        <section class="action-list" aria-label="File actions">
+            <label class="project-field">
+                <span>Project ID</span>
+                <input id="project-id" type="text" value="pong" autocomplete="off">
+            </label>
+            <button class="file-action primary-action" type="button" data-command="new-project">
+                <span class="action-title">New Project</span>
+                <span class="action-copy">Start a game from a Studio template.</span>
+            </button>
+            <button class="file-action" type="button" data-command="open-project">
+                <span class="action-title">Open Project</span>
+                <span class="action-copy">Load an existing User workspace project.</span>
+            </button>
+            <button class="file-action" type="button" data-command="save-project">
+                <span class="action-title">Save Project</span>
+                <span class="action-copy">Persist current project metadata and editor state.</span>
+            </button>
+        </section>
+
+        <section class="status-panel" id="status-panel" aria-live="polite">
+            <strong>Ready</strong>
+            <span>Select a file action.</span>
+        </section>
+    </main>
+
+    <script>
+        (function () {
+            const statusPanel = document.getElementById("status-panel");
+            const projectIdInput = document.getElementById("project-id");
+            const routes = {
+                "new-project": "/studio/open-new-project",
+                "open-project": "/studio/open-project",
+                "save-project": "/studio/save-project"
+            };
+
+            function setStatus(kind, title, body) {
+                statusPanel.className = "status-panel " + kind;
+                statusPanel.innerHTML = "<strong></strong><span></span>";
+                statusPanel.querySelector("strong").textContent = title;
+                statusPanel.querySelector("span").textContent = body;
+            }
+
+            document.addEventListener("click", function (event) {
+                const button = event.target.closest("[data-command]");
+                if (!button) {
+                    return;
+                }
+
+                const route = routes[button.dataset.command];
+                if (!route) {
+                    return;
+                }
+
+                button.disabled = true;
+                setStatus("pending", "Working", "Studio is handling the file action.");
+                let url = "http://127.0.0.1:37620" + route;
+                if (button.dataset.command !== "new-project") {
+                    url += "?projectId=" + encodeURIComponent(projectIdInput.value);
+                }
+
+                fetch(url)
+                    .then(function (response) {
+                        return response.json();
+                    })
+                    .then(function (result) {
+                        setStatus(result.ok ? "success" : "notice", result.ok ? "Done" : "Not Ready", result.message);
+                    })
+                    .catch(function () {
+                        setStatus("notice", "Bridge unavailable", "Studio did not respond.");
+                    })
+                    .finally(function () {
+                        button.disabled = false;
+                    });
+            });
+        }());
+    </script>
+</body>
+</html>

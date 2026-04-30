@@ -46,6 +46,7 @@ Engine-Chili2.0 is intended to grow through:
 
 - engine-owned runtime phases
 - app-facing capability interfaces
+- readable app-facing client language over those capabilities
 - prototype-driven public boundaries
 - module-private execution state
 - explicit ownership of lifetime and translation
@@ -250,11 +251,38 @@ Must not own:
 
 ## Boundary Rules
 
+### Runtime Domains
+
+The engine runtime is split into three domains:
+
+- management
+- logic
+- presentation
+
+Domain authority rules:
+
+- management monitors heartbeats, pressure, and policy state
+- logic owns authoritative state mutation
+- presentation consumes committed snapshots only
+
+Forbidden cross-domain shortcuts:
+
+- presentation mutating logic-owned truth
+- management performing heavy simulation or render work
+- hidden shared mutable state passed between logic and presentation
+
+Communication rule:
+
+- cross-domain communication must be explicit
+- logic-to-presentation communication should happen through published snapshots
+- policy/throttle communication should happen through engine-owned runtime control state
+
 ### Apps
 
 Apps may:
 
 - use capability interfaces
+- use readable app-facing helper layers that translate into capability calls
 - submit prototype inputs
 - react through approved hooks
 
@@ -264,6 +292,56 @@ Apps must not:
 - create renderer-private or GPU-private execution objects
 - bypass capabilities with direct module access
 - perform engine-owned import, decode, or backend work
+
+### App Code Readability
+
+App code is a first-class engine client.
+
+The app-facing API should be shaped so game and tool code reads as intent, not engine plumbing.
+
+Prefer app code that expresses:
+
+- input intent
+- frame time
+- game-local state updates
+- presentation intent
+- tool or overlay intent
+
+Avoid forcing app code to repeatedly spell out:
+
+- raw window input polling
+- platform key constants
+- frame lifecycle ceremony
+- render submission plumbing
+- low-level subsystem routing
+
+Readable app-facing helpers are allowed when they:
+
+- sit on top of existing capabilities
+- do not own module state
+- do not duplicate authoritative state
+- do not bypass module ownership
+- translate clearly into the proper capability or prototype boundary
+
+Readable app-facing helpers must not become:
+
+- a second engine core
+- a service locator wrapper
+- a gameplay framework that owns engine subsystems
+- a shortcut around missing module APIs
+- an excuse to move app-specific concepts into shared prototypes
+
+Rule:
+
+If an app needs to say something common in awkward engine terms, improve the app-facing language at the correct boundary.
+
+Examples:
+
+- prefer `input.Action("Serve").Pressed()` over raw window key checks in gameplay code
+- prefer `frame.DeltaSeconds()` over reading time from the window surface
+- prefer returning or submitting a presentation description over issuing scattered render plumbing calls
+
+The app-facing language is a usability layer over ownership-correct APIs, not a replacement for ownership-correct APIs.
 
 ### Prototypes
 

@@ -4,66 +4,10 @@
 #include "../../core/engine_context.hpp"
 #include "../../modules/resources/iresource_service.hpp"
 #include "../../modules/resources/resource_types.hpp"
-#include "../../prototypes/entity/appearance/color.hpp"
-#include "../../prototypes/entity/appearance/light.hpp"
 #include "../../prototypes/entity/object/object.hpp"
 
 #include <string>
 #include <utility>
-
-namespace
-{
-    MaterialPrototype BuildLightingLabStuccoRoomMaterial()
-    {
-        MaterialPrototype material;
-        material.baseLayer.albedo = ColorPrototype(1.0f, 1.0f, 1.0f, 1.0f);
-        material.baseLayer.albedoAssetId = "library/materials/stucco/albedo.png";
-        material.baseLayer.normalAssetId = "library/materials/stucco/normal.png";
-        material.baseLayer.heightAssetId = "library/materials/stucco/height.png";
-        material.baseLayer.roughness = 0.82f;
-        material.reflectivity = 0.0f;
-        material.reflectionColor = material.baseLayer.albedo;
-        material.brdf.ambientStrength = 0.07f;
-        material.brdf.diffuseStrength = 0.94f;
-        material.brdf.specularStrength = 0.06f;
-        material.brdf.specularPower = 10.0f;
-        return material;
-    }
-
-    MaterialPrototype BuildLightingLabStuccoFloorMaterial()
-    {
-        MaterialPrototype material = BuildLightingLabStuccoRoomMaterial();
-        material.baseLayer.roughness = 0.86f;
-        material.brdf.ambientStrength = 0.06f;
-        return material;
-    }
-
-    MaterialPrototype BuildLightingLabStuccoCubeMaterial()
-    {
-        MaterialPrototype material = BuildLightingLabStuccoRoomMaterial();
-        material.baseLayer.roughness = 0.34f;
-        material.brdf.ambientStrength = 0.08f;
-        material.brdf.diffuseStrength = 0.90f;
-        material.brdf.specularStrength = 0.26f;
-        material.brdf.specularPower = 22.0f;
-        return material;
-    }
-
-    MaterialPrototype BuildLightingLabEmitterMaterial()
-    {
-        MaterialPrototype material;
-        material.baseLayer.albedo = ColorPrototype::FromArgb(0xFFFFF1D0u);
-        material.reflectivity = 0.0f;
-        material.reflectionColor = material.baseLayer.albedo;
-        material.baseLayer.roughness = 0.12f;
-        material.brdf.ambientStrength = 0.40f;
-        material.brdf.diffuseStrength = 0.45f;
-        material.brdf.specularStrength = 0.18f;
-        material.brdf.specularPower = 16.0f;
-        return material;
-    }
-
-}
 
 const char* PrototypeModule::GetName() const
 {
@@ -80,12 +24,7 @@ bool PrototypeModule::Initialize(EngineContext& context)
     m_context = &context;
     m_nextInstanceHandle = 1U;
     m_prototypes.clear();
-    m_materialPrototypes.clear();
     m_instances.clear();
-    m_materialPrototypes.emplace("lighting_lab/stucco_floor", BuildLightingLabStuccoFloorMaterial());
-    m_materialPrototypes.emplace("lighting_lab/stucco_room", BuildLightingLabStuccoRoomMaterial());
-    m_materialPrototypes.emplace("lighting_lab/stucco_cube", BuildLightingLabStuccoCubeMaterial());
-    m_materialPrototypes.emplace("lighting_lab/emitter", BuildLightingLabEmitterMaterial());
     m_initialized = true;
     return true;
 }
@@ -130,7 +69,6 @@ void PrototypeModule::Shutdown(EngineContext& context)
 
         m_instances.clear();
         m_prototypes.clear();
-        m_materialPrototypes.clear();
     }
 
     m_nextInstanceHandle = 1U;
@@ -212,18 +150,6 @@ const IPrototype* PrototypeModule::GetPrototype(PrototypeId prototypeId) const
 bool PrototypeModule::HasPrototype(PrototypeId prototypeId) const
 {
     return GetPrototype(prototypeId) != nullptr;
-}
-
-const MaterialPrototype* PrototypeModule::GetMaterialPrototype(const std::string& prototypeName) const
-{
-    std::lock_guard<std::mutex> lock(m_mutex);
-    const auto it = m_materialPrototypes.find(prototypeName);
-    return it != m_materialPrototypes.end() ? &it->second : nullptr;
-}
-
-bool PrototypeModule::HasMaterialPrototype(const std::string& prototypeName) const
-{
-    return GetMaterialPrototype(prototypeName) != nullptr;
 }
 
 PrototypeInstanceHandle PrototypeModule::CreateInstance(PrototypeId prototypeId)

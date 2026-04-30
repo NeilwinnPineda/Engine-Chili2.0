@@ -1,11 +1,8 @@
 #pragma once
 
 #include "app/app_capabilities.hpp"
-#include "prototypes/compiler/sandbox_scene_presets.hpp"
-#include "prototypes/entity/appearance/light.hpp"
-#include "prototypes/entity/scene/camera.hpp"
-#include "prototypes/presentation/frame.hpp"
-
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -15,54 +12,56 @@ public:
     bool Run();
 
 private:
-    struct SandboxState
+    struct StressState
     {
-        bool rotationPaused = false;
-        bool orbitEnabled = true;
-        bool highQualitySecondaryLighting = true;
-        double pausedSceneTime = 0.0;
-        double liveSceneTime = 0.0;
-        CameraPrototype camera;
-        LightPrototype primaryLight;
+        bool paused = false;
+        bool cpuStressEnabled = true;
+        bool jobStressEnabled = false;
+        bool memoryStressEnabled = false;
+        bool presentationStressEnabled = false;
+        bool soundRegistered = false;
+        bool startupSoundPlayed = false;
+        bool loopSoundPlaying = false;
+        bool soundAvailable = false;
+        int targetLoadPercent = 40;
+        int effectiveLogicLoadPercent = 40;
+        int effectivePresentationLoadPercent = 40;
+        int effectiveMemoryLoadPercent = 40;
+        PressureState observedPressureState = PressureState::Normal;
+        PressureState observedLogicPressureState = PressureState::Normal;
+        PressureState observedPresentationPressureState = PressureState::Normal;
+        bool observedDegradedMode = false;
+        bool observedEmergencyMode = false;
+        int observedLogicThrottleLevel = 0;
+        int observedPresentationThrottleLevel = 0;
+        std::uint64_t observedSnapshotVersion = 0;
+        std::size_t memoryBlocksTarget = 0;
+        std::size_t submittedStressJobs = 0;
+        std::size_t frameStressJobs = 0;
+        std::size_t frameCpuIterations = 0;
+        std::size_t framePresentationPatches = 0;
+        float masterVolume = 1.0f;
+        bool soundMuted = false;
     };
 
 private:
-    struct ControlButtons
-    {
-        IAppUi::NativeButtonHandle exposureDown = 0U;
-        IAppUi::NativeButtonHandle exposureUp = 0U;
-        IAppUi::NativeButtonHandle fovDown = 0U;
-        IAppUi::NativeButtonHandle fovUp = 0U;
-        IAppUi::NativeButtonHandle lightDown = 0U;
-        IAppUi::NativeButtonHandle lightUp = 0U;
-        IAppUi::NativeButtonHandle bounceDown = 0U;
-        IAppUi::NativeButtonHandle bounceUp = 0U;
-        IAppUi::NativeButtonHandle tracedDown = 0U;
-        IAppUi::NativeButtonHandle tracedUp = 0U;
-        IAppUi::NativeButtonHandle traceDistanceDown = 0U;
-        IAppUi::NativeButtonHandle traceDistanceUp = 0U;
-        IAppUi::NativeButtonHandle qualityToggle = 0U;
-    };
-
-private:
-    void ApplySecondaryLightingQuality(AppCapabilities& capabilities, bool highQuality);
-    void InitializeControlButtons(AppCapabilities& capabilities);
-    void LayoutControlButtons(AppCapabilities& capabilities);
+    void InitializeSandbox(AppCapabilities& capabilities);
     void UpdateFrame(AppCapabilities& capabilities);
-    void UpdateLogic(AppCapabilities& capabilities);
-    void ConfigureSandbox();
-    void InitializeLightingLabMaterials();
-    void ResetCamera();
-    FramePrototype BuildFrame() const;
-    std::wstring BuildOverlayText(const AppCapabilities& capabilities) const;
+    void UpdateStressPolicy(AppCapabilities& capabilities);
+    void HandleControls(AppCapabilities& capabilities);
+    void RunStressors(AppCapabilities& capabilities);
+    void RunCpuStress();
+    void RunJobStress(AppCapabilities& capabilities);
+    void RunMemoryStress();
+    void ResetStressState();
+    std::wstring BuildOverlayText() const;
+    static const wchar_t* PressureStateLabel(PressureState state);
+    static const wchar_t* EnabledLabel(bool enabled);
 
 private:
-    SandboxState m_state;
-    SandboxPresetScenePrototype m_scene = SandboxPresetScenePrototype::LightingLab;
-    MaterialPrototype m_floorMaterial;
-    MaterialPrototype m_roomMaterial;
-    MaterialPrototype m_cubeMaterial;
-    MaterialPrototype m_reflectiveCubeMaterial;
-    MaterialPrototype m_emitterMaterial;
-    ControlButtons m_buttons;
+    static constexpr std::size_t kMemoryBlockBytes = 1024U * 1024U;
+    static constexpr std::size_t kMaxMemoryBlocks = 64U;
+
+    StressState m_state;
+    std::vector<std::vector<std::byte>> m_memoryBlocks;
 };

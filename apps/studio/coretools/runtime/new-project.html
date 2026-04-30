@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create New Project</title>
+    <link rel="stylesheet" href="./new-project.css">
+</head>
+<body>
+    <main class="dialog-shell">
+        <header class="dialog-header">
+            <p class="kicker">Studio Workspace</p>
+            <h1>Create New Project</h1>
+            <p class="subtitle">Start a new game project in the User workspace.</p>
+        </header>
+
+        <form class="project-form" id="project-form">
+            <label class="field">
+                <span>Project Name</span>
+                <input id="project-name" name="projectName" type="text" value="Pong" autocomplete="off">
+            </label>
+
+            <label class="field">
+                <span>Project ID</span>
+                <input id="project-id" name="projectId" type="text" value="pong" readonly>
+            </label>
+
+            <label class="field">
+                <span>Template</span>
+                <select id="template-name" name="templateName">
+                    <option value="Arcade2D" selected>Arcade2D</option>
+                </select>
+            </label>
+
+            <label class="field">
+                <span>Output Location</span>
+                <input id="output-path" name="outputPath" type="text" value="User/pong/Project" readonly>
+            </label>
+
+            <section class="result-panel" id="result-panel" aria-live="polite">
+                <strong>Ready</strong>
+                <span>Choose a name, then create the project from Studio.</span>
+            </section>
+
+            <div class="action-row">
+                <button class="secondary-action" type="button" id="cancel-button">Cancel</button>
+                <button class="primary-action" type="submit">Create Project</button>
+            </div>
+        </form>
+    </main>
+
+    <script>
+        (function () {
+            const nameInput = document.getElementById("project-name");
+            const idInput = document.getElementById("project-id");
+            const outputInput = document.getElementById("output-path");
+            const templateInput = document.getElementById("template-name");
+            const form = document.getElementById("project-form");
+            const resultPanel = document.getElementById("result-panel");
+            const cancelButton = document.getElementById("cancel-button");
+
+            function makeProjectId(value) {
+                return value
+                    .trim()
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, "_")
+                    .replace(/^_+|_+$/g, "");
+            }
+
+            function updatePreview() {
+                const id = makeProjectId(nameInput.value) || "untitled_project";
+                idInput.value = id;
+                outputInput.value = "User/" + id + "/Project";
+            }
+
+            function setResult(kind, title, body) {
+                resultPanel.className = "result-panel " + kind;
+                resultPanel.innerHTML = "<strong></strong><span></span>";
+                resultPanel.querySelector("strong").textContent = title;
+                resultPanel.querySelector("span").textContent = body;
+            }
+
+            nameInput.addEventListener("input", updatePreview);
+            form.addEventListener("submit", function (event) {
+                event.preventDefault();
+                updatePreview();
+                setResult("pending", "Creating", "Studio is generating project files.");
+
+                const url =
+                    "http://127.0.0.1:37620/studio/create-project?projectName=" +
+                    encodeURIComponent(nameInput.value) +
+                    "&templateName=" +
+                    encodeURIComponent(templateInput.value);
+
+                fetch(url)
+                    .then(function (response) {
+                        return response.json();
+                    })
+                    .then(function (result) {
+                        if (result.ok) {
+                            setResult(
+                                "success",
+                                "Project created successfully.",
+                                result.logicalPath + " | " + result.message);
+                            return;
+                        }
+
+                        setResult("error", "Project creation failed.", result.message);
+                    })
+                    .catch(function () {
+                        setResult("error", "Project creation failed.", "Studio bridge did not respond.");
+                    });
+            });
+            cancelButton.addEventListener("click", function () {
+                window.close();
+            });
+
+            updatePreview();
+        }());
+    </script>
+</body>
+</html>

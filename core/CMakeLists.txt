@@ -1,10 +1,13 @@
 add_library(engine_core
+    ../src/core/runtime_domains.cpp
     ../src/core/engine_core.cpp
     ../src/core/module_manager.cpp
     ../src/prototypes/compiler/infinite_plane_render_compiler.cpp
+    ../src/prototypes/compiler/line_render_compiler.cpp
     ../src/prototypes/compiler/object_render_compiler.cpp
     ../src/prototypes/compiler/progressive_hex_render_compiler.cpp
     ../src/prototypes/compiler/render_frame_compiler.cpp
+    ../src/prototypes/compiler/runtime_stress_frame_compiler.cpp
     ../src/prototypes/compiler/sandbox_scene_presets.cpp
     ../src/prototypes/systems/moving_cube_sample_scene.cpp
     ../src/systems/light_ray/light_ray_system.cpp
@@ -19,6 +22,7 @@ add_library(engine_core
     ../src/modules/logger/logger_module.cpp
     ../src/modules/memory/memory_module.cpp
     ../src/modules/native_ui/native_button_host.cpp
+    ../src/modules/native_ui/native_label_host.cpp
     ../src/modules/native_ui/native_ui_module.cpp
     ../src/modules/platform/platform_module.cpp
     ../src/modules/platform/platform_window.cpp
@@ -28,6 +32,8 @@ add_library(engine_core
     ../src/modules/render/progressive_hex_strategy.cpp
     ../src/modules/render/render_module.cpp
     ../src/modules/resources/resource_module.cpp
+    ../src/modules/sound/audio_backend_xaudio2.cpp
+    ../src/modules/sound/sound_module.cpp
     ../src/modules/resources/texture_decode.cpp
     ../src/modules/render/render_backend_factory.cpp
     ../src/modules/render/backend/dx11_render_backend.cpp
@@ -35,8 +41,14 @@ add_library(engine_core
     ../src/modules/timer/timer_module.cpp
     ../src/modules/webview/web_dialog_host.cpp
     ../src/modules/webview/webview_module.cpp
+    ../src/native_ui/native_ui_builder.cpp
+    ../src/native_ui/native_ui_compiler.cpp
+    ../src/native_ui/native_ui_frame.cpp
     ../src/core/engine_context.hpp
     ../src/core/engine_core.hpp
+    ../src/core/presentation_snapshot_buffer.hpp
+    ../src/core/runtime_domains.hpp
+    ../src/core/runtime_types.hpp
     ../src/core/module.hpp
     ../src/core/module_manager.hpp
     ../src/modules/diagnostics/diagnostics_module.hpp
@@ -52,6 +64,7 @@ add_library(engine_core
     ../src/modules/logger/logger_module.hpp
     ../src/modules/memory/memory_module.hpp
     ../src/modules/native_ui/native_button_host.hpp
+    ../src/modules/native_ui/native_label_host.hpp
     ../src/modules/native_ui/native_ui_module.hpp
     ../src/modules/platform/platform_module.hpp
     ../src/modules/platform/platform_window.hpp
@@ -66,6 +79,10 @@ add_library(engine_core
     ../src/modules/resources/resource_module.hpp
     ../src/modules/resources/texture_decode.hpp
     ../src/modules/resources/iresource_service.hpp
+    ../src/modules/sound/audio_backend.hpp
+    ../src/modules/sound/audio_backend_xaudio2.hpp
+    ../src/modules/sound/isound_service.hpp
+    ../src/modules/sound/sound_module.hpp
     ../src/modules/render/render_types.hpp
     ../src/modules/render/render_frame_context.hpp
     ../src/modules/render/render_backend_factory.hpp
@@ -88,12 +105,15 @@ add_library(engine_core
     ../src/prototypes/entity/scene/camera.hpp
     ../src/prototypes/entity/scene/infinite_plane.hpp
     ../src/prototypes/systems/moving_cube_sample_scene.hpp
+    ../src/prototypes/systems/runtime_stress_policy.hpp
     ../src/prototypes/systems/light_ray.hpp
     ../src/systems/light_ray/light_ray_system.hpp
     ../src/prototypes/compiler/infinite_plane_render_compiler.hpp
+    ../src/prototypes/compiler/line_render_compiler.hpp
     ../src/prototypes/compiler/object_render_compiler.hpp
     ../src/prototypes/compiler/progressive_hex_render_compiler.hpp
     ../src/prototypes/compiler/progressive_hex_render_strategy.hpp
+    ../src/prototypes/compiler/runtime_stress_frame_compiler.hpp
     ../src/prototypes/compiler/sandbox_scene_presets.hpp
     ../src/prototypes/math/color_sample_math.hpp
     ../src/prototypes/compiler/render_frame_compiler.hpp
@@ -103,6 +123,11 @@ add_library(engine_core
     ../src/modules/timer/timer_module.hpp
     ../src/modules/webview/web_dialog_host.hpp
     ../src/modules/webview/webview_module.hpp
+    ../src/native_ui/native_ui_builder.hpp
+    ../src/native_ui/native_ui_compiler.hpp
+    ../src/native_ui/native_ui_element.hpp
+    ../src/native_ui/native_ui_frame.hpp
+    ../src/native_ui/native_ui_style.hpp
 )
 
 target_include_directories(engine_core
@@ -129,6 +154,7 @@ if(MINGW)
         PUBLIC
             gdi32
             winmm
+            xaudio2_9
     )
 endif()
 

@@ -4,6 +4,7 @@
 #include "../modules/timer/timer_module.hpp"
 #include "../modules/diagnostics/diagnostics_module.hpp"
 #include "../modules/platform/platform_module.hpp"
+#include "../modules/sound/sound_module.hpp"
 #include "../modules/render/render_module.hpp"
 #include "../modules/resources/resource_module.hpp"
 #include "../modules/input/input_module.hpp"
@@ -15,6 +16,7 @@
 #include "../modules/prototypes/prototype_module.hpp"
 #include "../modules/webview/webview_module.hpp"
 #include "../modules/native_ui/native_ui_module.hpp"
+#include "../native_ui/native_ui_compiler.hpp"
 
 #include <windows.h>
 
@@ -43,6 +45,39 @@
 
 namespace
 {
+    unsigned int CountPhysicalCores()
+    {
+        DWORD bufferSize = 0;
+        GetLogicalProcessorInformationEx(RelationProcessorCore, nullptr, &bufferSize);
+        if (bufferSize == 0)
+        {
+            return 0U;
+        }
+
+        std::vector<unsigned char> buffer(bufferSize);
+        auto* info = reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(buffer.data());
+        if (!GetLogicalProcessorInformationEx(RelationProcessorCore, info, &bufferSize))
+        {
+            return 0U;
+        }
+
+        unsigned int coreCount = 0U;
+        unsigned char* cursor = buffer.data();
+        const unsigned char* end = buffer.data() + bufferSize;
+        while (cursor < end)
+        {
+            auto* entry = reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(cursor);
+            if (entry->Relationship == RelationProcessorCore)
+            {
+                ++coreCount;
+            }
+
+            cursor += entry->Size;
+        }
+
+        return coreCount;
+    }
+
     std::string TrimString(const std::string& value)
     {
         const auto begin = std::find_if_not(
@@ -258,6 +293,55 @@ private:
     EngineCore& m_core;
 };
 
+class AppInputCapabilityAdapter final : public IAppInput
+{
+public:
+    explicit AppInputCapabilityAdapter(EngineCore& core)
+        : m_core(core)
+    {
+    }
+
+    bool IsKeyDown(AppKey key) const override
+    {
+        return m_core.IsKeyDown(static_cast<unsigned char>(key));
+    }
+
+    bool WasKeyPressed(AppKey key) const override
+    {
+        return m_core.WasKeyPressed(static_cast<unsigned char>(key));
+    }
+
+    bool WasKeyReleased(AppKey key) const override
+    {
+        return m_core.WasKeyReleased(static_cast<unsigned char>(key));
+    }
+
+private:
+    EngineCore& m_core;
+};
+
+class AppTimeCapabilityAdapter final : public IAppTime
+{
+public:
+    explicit AppTimeCapabilityAdapter(EngineCore& core)
+        : m_core(core)
+    {
+    }
+
+    double GetDeltaSeconds() const override
+    {
+        return m_core.GetDeltaTime();
+    }
+
+    double GetTotalSeconds() const override
+    {
+        return m_core.GetTotalTime();
+    }
+
+private:
+    EngineCore& m_core;
+};
+
 class AppWindowCapabilityAdapter final : public IAppWindow
 {
 public:
@@ -378,6 +462,265 @@ public:
         return m_core.ConsumeNativeButtonPressed(handle);
     }
 
+    NativeLabelHandle CreateNativeLabel(const NativeLabelDesc& desc) override
+    {
+        return m_core.CreateNativeLabel(desc);
+    }
+
+    bool DestroyNativeLabel(NativeLabelHandle handle) override
+    {
+        return m_core.DestroyNativeLabel(handle);
+    }
+
+    bool SetNativeLabelText(NativeLabelHandle handle, const std::wstring& text) override
+    {
+        return m_core.SetNativeLabelText(handle, text);
+    }
+
+    bool SetNativeLabelBounds(NativeLabelHandle handle, const NativeControlRect& rect) override
+    {
+        return m_core.SetNativeLabelBounds(handle, rect);
+    }
+
+    bool SetNativeLabelVisible(NativeLabelHandle handle, bool visible) override
+    {
+        return m_core.SetNativeLabelVisible(handle, visible);
+    }
+
+private:
+    EngineCore& m_core;
+};
+
+class AppNativeUiCapabilityAdapter final : public IAppNativeUi
+{
+public:
+    explicit AppNativeUiCapabilityAdapter(EngineCore& core)
+        : m_core(core)
+    {
+    }
+
+    void Submit(const NativeUiFrame& frame) override
+    {
+        if (frame.hasWindowTitle)
+        {
+            m_core.SetWindowTitle(frame.windowTitle);
+        }
+
+        m_core.SetWindowOverlayEnabled(frame.overlayEnabled);
+        if (frame.hasClearColor)
+        {
+            m_core.ClearFrame(frame.clearColor);
+        }
+
+        const NativeUiCompiledFrame compiled = NativeUiCompiler::Compile(frame);
+        if (compiled.hasPresentationFrame)
+        {
+            m_core.SubmitRenderFrame(compiled.presentationFrame);
+        }
+
+        std::vector<NativeLabelDesc> labels;
+        labels.reserve(frame.nativeLabels.size());
+        for (const NativeUiLabel& label : frame.nativeLabels)
+        {
+            NativeLabelDesc desc;
+            desc.name = label.name;
+            desc.text = label.text;
+            desc.rect = label.useAnchor
+                ? ResolveAnchoredRect(label.anchor, label.offsetX, label.offsetY, label.width, label.height)
+                : NativeControlRect{ label.x, label.y, label.width, label.height };
+            desc.visible = label.visible;
+            desc.textColor = label.textColor;
+            desc.backgroundColor = label.backgroundColor;
+            desc.transparentBackground = label.transparentBackground;
+            desc.multiline = label.multiline;
+            desc.alignLeft = label.alignLeft;
+            labels.push_back(std::move(desc));
+        }
+        for (const NativeUiPanel& panel : frame.panels)
+        {
+            NativeLabelDesc desc;
+            desc.name = std::string("panel.") + panel.title;
+            desc.text = EngineCore::ToWideString(panel.title);
+            for (const NativeUiStatusRow& row : panel.rows)
+            {
+                desc.text += L"\n" + EngineCore::ToWideString(row.label) + L": " + EngineCore::ToWideString(row.value);
+            }
+            desc.rect = ResolveAnchoredRect(panel.anchor, panel.offsetX, panel.offsetY, panel.width, panel.height);
+            desc.visible = panel.visible;
+            desc.textColor = panel.textColor;
+            desc.backgroundColor = panel.backgroundColor;
+            desc.transparentBackground = false;
+            desc.multiline = true;
+            desc.alignLeft = true;
+            labels.push_back(std::move(desc));
+        }
+        m_core.SyncNativeLabels(labels);
+
+        m_core.SetWindowOverlayText(compiled.overlayText);
+    }
+
+private:
+    NativeControlRect ResolveAnchoredRect(
+        NativeUiAnchor anchor,
+        int offsetX,
+        int offsetY,
+        int width,
+        int height) const
+    {
+        const int windowWidth = std::max(0, m_core.GetWindowWidth());
+        const int windowHeight = std::max(0, m_core.GetWindowHeight());
+
+        int x = offsetX;
+        int y = offsetY;
+        switch (anchor)
+        {
+        case NativeUiAnchor::TopCenter:
+            x = (windowWidth - width) / 2 + offsetX;
+            y = offsetY;
+            break;
+        case NativeUiAnchor::TopRight:
+            x = windowWidth - width - offsetX;
+            y = offsetY;
+            break;
+        case NativeUiAnchor::Center:
+            x = (windowWidth - width) / 2 + offsetX;
+            y = (windowHeight - height) / 2 + offsetY;
+            break;
+        case NativeUiAnchor::BottomLeft:
+            x = offsetX;
+            y = windowHeight - height - offsetY;
+            break;
+        case NativeUiAnchor::BottomCenter:
+            x = (windowWidth - width) / 2 + offsetX;
+            y = windowHeight - height - offsetY;
+            break;
+        case NativeUiAnchor::BottomRight:
+            x = windowWidth - width - offsetX;
+            y = windowHeight - height - offsetY;
+            break;
+        case NativeUiAnchor::TopLeft:
+        default:
+            x = offsetX;
+            y = offsetY;
+            break;
+        }
+
+        return NativeControlRect{ x, y, width, height };
+    }
+
+    EngineCore& m_core;
+};
+
+class AppSoundCapabilityAdapter final : public IAppSound
+{
+public:
+    explicit AppSoundCapabilityAdapter(EngineCore& core)
+        : m_core(core)
+    {
+    }
+
+    bool IsAvailable() const override
+    {
+        return m_core.IsSoundAvailable();
+    }
+
+    bool RegisterSound(const SoundClipDesc& desc) override
+    {
+        return m_core.RegisterSound(desc);
+    }
+
+    void SetMasterVolume(float volume) override
+    {
+        m_core.SetMasterVolume(volume);
+    }
+
+    float GetMasterVolume() const override
+    {
+        return m_core.GetMasterVolume();
+    }
+
+    void SetMuted(bool muted) override
+    {
+        m_core.SetSoundMuted(muted);
+    }
+
+    bool IsMuted() const override
+    {
+        return m_core.IsSoundMuted();
+    }
+
+    void StopAll() override
+    {
+        m_core.StopAllSounds();
+    }
+
+    bool PlayOneShot(const std::string& soundId) override
+    {
+        return m_core.PlayOneShotSound(soundId);
+    }
+
+    bool PlayLoop(const std::string& soundId) override
+    {
+        return m_core.PlayLoopSound(soundId);
+    }
+
+    void StopSound(const std::string& soundId) override
+    {
+        m_core.StopSoundById(soundId);
+    }
+
+private:
+    EngineCore& m_core;
+};
+
+class AppRuntimeCapabilityAdapter final : public IAppRuntime
+{
+public:
+    explicit AppRuntimeCapabilityAdapter(EngineCore& core)
+        : m_core(core)
+    {
+    }
+
+    PressureState GetPressureState() const override
+    {
+        return m_core.GetRuntimePressureState();
+    }
+
+    PressureState GetLogicPressureState() const override
+    {
+        return m_core.GetRuntimeLogicPressureState();
+    }
+
+    PressureState GetPresentationPressureState() const override
+    {
+        return m_core.GetRuntimePresentationPressureState();
+    }
+
+    bool IsDegradedMode() const override
+    {
+        return m_core.IsRuntimeDegradedMode();
+    }
+
+    bool IsEmergencyMode() const override
+    {
+        return m_core.IsRuntimeEmergencyMode();
+    }
+
+    int GetLogicThrottleLevel() const override
+    {
+        return m_core.GetRuntimeLogicThrottleLevel();
+    }
+
+    int GetPresentationThrottleLevel() const override
+    {
+        return m_core.GetRuntimePresentationThrottleLevel();
+    }
+
+    std::uint64_t GetPublishedPresentationSnapshotVersion() const override
+    {
+        return m_core.GetPublishedPresentationSnapshotVersion();
+    }
+
 private:
     EngineCore& m_core;
 };
@@ -398,15 +741,25 @@ EngineCore::EngineCore()
     m_loggingCapability = std::make_unique<AppLoggingCapabilityAdapter>(*this);
     m_resourcesCapability = std::make_unique<AppResourcesCapabilityAdapter>(*this);
     m_renderingCapability = std::make_unique<AppRenderingCapabilityAdapter>(*this);
+    m_inputCapability = std::make_unique<AppInputCapabilityAdapter>(*this);
+    m_timeCapability = std::make_unique<AppTimeCapabilityAdapter>(*this);
     m_jobsCapability = std::make_unique<AppJobsCapabilityAdapter>(*this);
     m_windowCapability = std::make_unique<AppWindowCapabilityAdapter>(*this);
     m_uiCapability = std::make_unique<AppUiCapabilityAdapter>(*this);
+    m_nativeUiCapability = std::make_unique<AppNativeUiCapabilityAdapter>(*this);
+    m_soundCapability = std::make_unique<AppSoundCapabilityAdapter>(*this);
+    m_runtimeCapability = std::make_unique<AppRuntimeCapabilityAdapter>(*this);
     m_appCapabilities.logging = m_loggingCapability.get();
     m_appCapabilities.resources = m_resourcesCapability.get();
     m_appCapabilities.rendering = m_renderingCapability.get();
+    m_appCapabilities.input = m_inputCapability.get();
+    m_appCapabilities.time = m_timeCapability.get();
     m_appCapabilities.jobs = m_jobsCapability.get();
     m_appCapabilities.window = m_windowCapability.get();
     m_appCapabilities.ui = m_uiCapability.get();
+    m_appCapabilities.nativeUi = m_nativeUiCapability.get();
+    m_appCapabilities.sound = m_soundCapability.get();
+    m_appCapabilities.runtime = m_runtimeCapability.get();
 }
 
 EngineCore::~EngineCore() = default;
@@ -433,6 +786,8 @@ bool EngineCore::Initialize()
     m_diagnostics = m_modules.AddModule<DiagnosticsModule>();
     m_platformModule = m_modules.AddModule<PlatformModule>();
     m_platform = m_platformModule;
+    m_soundModule = m_modules.AddModule<SoundModule>();
+    m_sound = m_soundModule;
     m_gpuModule = m_modules.AddModule<GpuModule>();
     m_gpu = m_gpuModule;
     m_renderModule = m_modules.AddModule<RenderModule>();
@@ -452,6 +807,7 @@ bool EngineCore::Initialize()
 
     m_context.Logger = m_logger;
     m_context.Platform = m_platform;
+    m_context.Sound = m_sound;
     m_context.Gpu = m_gpu;
     m_context.Render = m_render;
     m_context.Resources = m_resources;
@@ -494,6 +850,35 @@ bool EngineCore::Initialize()
     m_adaptiveSleepMargin = 0.0010;
     m_adaptiveYieldMargin = 0.0002;
     m_isBehindSchedule = false;
+    m_runtimeWallClockStartTime = FrameClock::now();
+    m_runtimeControlState.shutdownRequested.store(false, std::memory_order_relaxed);
+    m_runtimeControlState.degradedMode.store(false, std::memory_order_relaxed);
+    m_runtimeControlState.emergencyMode.store(false, std::memory_order_relaxed);
+    m_runtimeControlState.pressureState.store(PressureState::Normal, std::memory_order_relaxed);
+    m_runtimeControlState.logicPressureState.store(PressureState::Normal, std::memory_order_relaxed);
+    m_runtimeControlState.presentationPressureState.store(PressureState::Normal, std::memory_order_relaxed);
+    m_runtimeControlState.logicThrottleLevel.store(0, std::memory_order_relaxed);
+    m_runtimeControlState.presentationThrottleLevel.store(0, std::memory_order_relaxed);
+    {
+        std::lock_guard<std::mutex> lock(m_runtimeResourceSnapshotMutex);
+        m_runtimeResourceSnapshot = ResourceSnapshot{};
+    }
+    m_runtimeStats = RuntimeStats{};
+    m_logicFrameDurationUs.store(0, std::memory_order_relaxed);
+    m_presentationFrameDurationUs.store(0, std::memory_order_relaxed);
+    m_runtimeSupervisorStopRequested.store(false, std::memory_order_relaxed);
+    m_managementHeartbeat.tickCount.store(0, std::memory_order_relaxed);
+    m_managementHeartbeat.lastProgressTimeUs.store(0, std::memory_order_relaxed);
+    m_managementHeartbeat.alive.store(false, std::memory_order_relaxed);
+    m_managementHeartbeat.stalled.store(false, std::memory_order_relaxed);
+    m_logicHeartbeat.tickCount.store(0, std::memory_order_relaxed);
+    m_logicHeartbeat.lastProgressTimeUs.store(0, std::memory_order_relaxed);
+    m_logicHeartbeat.alive.store(false, std::memory_order_relaxed);
+    m_logicHeartbeat.stalled.store(false, std::memory_order_relaxed);
+    m_presentationHeartbeat.tickCount.store(0, std::memory_order_relaxed);
+    m_presentationHeartbeat.lastProgressTimeUs.store(0, std::memory_order_relaxed);
+    m_presentationHeartbeat.alive.store(false, std::memory_order_relaxed);
+    m_presentationHeartbeat.stalled.store(false, std::memory_order_relaxed);
     ResetSettingsToDefaults();
 
     if (!LoadSettings())
@@ -530,25 +915,25 @@ bool EngineCore::Run()
 
     m_running = true;
     m_context.IsRunning = true;
+    StartRuntimeSupervisor();
 
     while (m_context.IsRunning)
     {
         m_frameStartTime = FrameClock::now();
 
         BeginFrame();
-
-        ServicePlatform();
-        DispatchAsyncWork();
-        ServiceCoreWork();
-        ProcessEvents();
-        ProcessCompletedWork();
-        ServiceScheduledWork();
-        ServiceDeferredWork();
-        SynchronizeCriticalWork();
-
+        ExecuteLogicDomain();
+        ExecutePresentationDomain();
+        ExecuteManagementDomain();
         EndFrame();
+
+        if (m_runtimeControlState.shutdownRequested.load(std::memory_order_relaxed))
+        {
+            m_context.IsRunning = false;
+        }
     }
 
+    StopRuntimeSupervisor();
     m_running = false;
     return true;
 }
@@ -564,10 +949,12 @@ bool EngineCore::Tick()
     {
         m_running = true;
         m_context.IsRunning = true;
+        StartRuntimeSupervisor();
     }
 
     if (!m_context.IsRunning)
     {
+        StopRuntimeSupervisor();
         m_running = false;
         return false;
     }
@@ -575,20 +962,14 @@ bool EngineCore::Tick()
     m_frameStartTime = FrameClock::now();
 
     BeginFrame();
-
-    ServicePlatform();
-    DispatchAsyncWork();
-    ServiceCoreWork();
-    ProcessEvents();
-    ProcessCompletedWork();
-    ServiceScheduledWork();
-    ServiceDeferredWork();
-    SynchronizeCriticalWork();
-
+    ExecuteLogicDomain();
+    ExecutePresentationDomain();
+    ExecuteManagementDomain();
     EndFrame();
 
     if (!m_context.IsRunning)
     {
+        StopRuntimeSupervisor();
         m_running = false;
     }
 
@@ -614,6 +995,7 @@ void EngineCore::Shutdown()
         );
     }
 
+    StopRuntimeSupervisor();
     m_modules.ShutdownAll(m_context);
     m_modules.Clear();
     ResetModuleReferences();
@@ -655,6 +1037,8 @@ void EngineCore::BeginFrame()
     m_smoothedFramesPerSecond = (m_smoothedDeltaTime > 0.0)
         ? (1.0 / m_smoothedDeltaTime)
         : 0.0;
+    m_runtimeStats.uptimeFrames += 1U;
+    m_runtimeStats.uptimeSeconds = m_context.TotalTime;
 }
 
 void EngineCore::ServicePlatform()
@@ -719,7 +1103,10 @@ void EngineCore::ServiceCoreWork()
     {
         m_frameCallback(m_appCapabilities);
     }
+}
 
+void EngineCore::ExecuteRenderPresentation()
+{
     if (m_renderModule)
     {
         m_renderModule->Update(m_context, m_context.DeltaTime);
@@ -777,6 +1164,179 @@ void EngineCore::SynchronizeCriticalWork()
     // future:
     // - wait only for engine-critical async work
     // - do not globally block unless a real dependency requires it
+}
+
+void EngineCore::ExecuteLogicDomain()
+{
+    const FrameClock::time_point domainStartTime = FrameClock::now();
+    ServicePlatform();
+    DispatchAsyncWork();
+    ServiceCoreWork();
+    ProcessEvents();
+    ProcessCompletedWork();
+    PublishPresentationSnapshot();
+
+    const std::uint64_t domainDurationUs = static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::microseconds>(FrameClock::now() - domainStartTime).count());
+    m_logicFrameDurationUs.store(domainDurationUs, std::memory_order_relaxed);
+    m_logicRuntime.Tick(
+        GetCurrentRuntimeTimestampUs(),
+        static_cast<double>(domainDurationUs) / 1000.0,
+        m_runtimeStats,
+        m_logicHeartbeat,
+        {});
+}
+
+void EngineCore::ExecutePresentationDomain()
+{
+    const FrameClock::time_point domainStartTime = FrameClock::now();
+    ExecuteRenderPresentation();
+    ServiceScheduledWork();
+    ServiceDeferredWork();
+    SynchronizeCriticalWork();
+
+    const std::uint64_t domainDurationUs = static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::microseconds>(FrameClock::now() - domainStartTime).count());
+    m_presentationFrameDurationUs.store(domainDurationUs, std::memory_order_relaxed);
+    m_presentationRuntime.Tick(
+        GetCurrentRuntimeTimestampUs(),
+        static_cast<double>(domainDurationUs) / 1000.0,
+        m_presentationSnapshots,
+        m_runtimeStats,
+        m_presentationHeartbeat,
+        {});
+}
+
+void EngineCore::ExecuteManagementDomain()
+{
+    m_runtimeStats.pressureState = GetRuntimePressureState();
+    m_runtimeStats.logicPressureState = GetRuntimeLogicPressureState();
+    m_runtimeStats.presentationPressureState = GetRuntimePresentationPressureState();
+}
+
+void EngineCore::PublishPresentationSnapshot()
+{
+    PresentationSnapshot snapshot;
+    snapshot.version = m_runtimeStats.publishedSnapshotVersion + 1U;
+    snapshot.totalTimeSeconds = m_context.TotalTime;
+    snapshot.deltaTimeSeconds = static_cast<double>(m_context.DeltaTime);
+    snapshot.submittedItemCount = GetRenderSubmittedItemCount();
+    snapshot.queuedJobs = GetQueuedJobCount();
+    snapshot.activeJobs = GetActiveJobCount();
+    snapshot.pressureState = GetRuntimePressureState();
+    snapshot.degradedMode = m_runtimeControlState.degradedMode.load(std::memory_order_relaxed);
+    snapshot.emergencyMode = m_runtimeControlState.emergencyMode.load(std::memory_order_relaxed);
+    snapshot.logicThrottleLevel = m_runtimeControlState.logicThrottleLevel.load(std::memory_order_relaxed);
+    snapshot.presentationThrottleLevel = m_runtimeControlState.presentationThrottleLevel.load(std::memory_order_relaxed);
+
+    m_presentationSnapshots.Publish(snapshot);
+    m_runtimeStats.publishedSnapshotVersion = snapshot.version;
+}
+
+void EngineCore::RefreshResourceSnapshot()
+{
+    ResourceSnapshot nextSnapshot;
+    MEMORYSTATUSEX memoryStatus{};
+    memoryStatus.dwLength = sizeof(memoryStatus);
+    if (GlobalMemoryStatusEx(&memoryStatus))
+    {
+        nextSnapshot.totalPhysicalMemoryBytes = memoryStatus.ullTotalPhys;
+        nextSnapshot.availablePhysicalMemoryBytes = memoryStatus.ullAvailPhys;
+        nextSnapshot.totalVirtualMemoryBytes = memoryStatus.ullTotalVirtual;
+        nextSnapshot.availableVirtualMemoryBytes = memoryStatus.ullAvailVirtual;
+        if (memoryStatus.ullTotalPhys > 0ULL)
+        {
+            nextSnapshot.memoryPressureRatio =
+                1.0 - (static_cast<double>(memoryStatus.ullAvailPhys) / static_cast<double>(memoryStatus.ullTotalPhys));
+        }
+    }
+
+    SYSTEM_INFO systemInfo{};
+    GetSystemInfo(&systemInfo);
+    nextSnapshot.logicalProcessors = systemInfo.dwNumberOfProcessors;
+    nextSnapshot.physicalCores = CountPhysicalCores();
+
+    const std::string workingDirectory = GetWorkingDirectory();
+    ULARGE_INTEGER freeBytesAvailable{};
+    ULARGE_INTEGER totalBytes{};
+    ULARGE_INTEGER totalFreeBytes{};
+    if (!workingDirectory.empty() &&
+        GetDiskFreeSpaceExA(workingDirectory.c_str(), &freeBytesAvailable, &totalBytes, &totalFreeBytes))
+    {
+        nextSnapshot.diskFreeBytes = totalFreeBytes.QuadPart;
+        nextSnapshot.diskTotalBytes = totalBytes.QuadPart;
+        if (totalBytes.QuadPart > 0ULL)
+        {
+            nextSnapshot.diskPressureRatio =
+                1.0 - (static_cast<double>(totalFreeBytes.QuadPart) / static_cast<double>(totalBytes.QuadPart));
+        }
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(m_runtimeResourceSnapshotMutex);
+        m_runtimeResourceSnapshot = nextSnapshot;
+    }
+}
+
+ResourceSnapshot EngineCore::GetRuntimeResourceSnapshotCopy() const
+{
+    std::lock_guard<std::mutex> lock(m_runtimeResourceSnapshotMutex);
+    return m_runtimeResourceSnapshot;
+}
+
+std::uint64_t EngineCore::GetCurrentRuntimeTimestampUs() const
+{
+    return static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::microseconds>(
+            FrameClock::now() - m_runtimeWallClockStartTime).count());
+}
+
+void EngineCore::StartRuntimeSupervisor()
+{
+    if (m_runtimeSupervisorThread.joinable())
+    {
+        return;
+    }
+
+    m_runtimeWallClockStartTime = FrameClock::now();
+    m_runtimeSupervisorStopRequested.store(false, std::memory_order_relaxed);
+    m_runtimeSupervisorThread = std::thread(&EngineCore::RunRuntimeSupervisorLoop, this);
+}
+
+void EngineCore::StopRuntimeSupervisor()
+{
+    m_runtimeSupervisorStopRequested.store(true, std::memory_order_relaxed);
+    if (m_runtimeSupervisorThread.joinable())
+    {
+        m_runtimeSupervisorThread.join();
+    }
+}
+
+void EngineCore::RunRuntimeSupervisorLoop()
+{
+    while (!m_runtimeSupervisorStopRequested.load(std::memory_order_relaxed) &&
+           !m_runtimeControlState.shutdownRequested.load(std::memory_order_relaxed))
+    {
+        RefreshResourceSnapshot();
+        const ResourceSnapshot resourceSnapshot = GetRuntimeResourceSnapshotCopy();
+        const double logicFrameMs =
+            static_cast<double>(m_logicFrameDurationUs.load(std::memory_order_relaxed)) / 1000.0;
+        const double presentationFrameMs =
+            static_cast<double>(m_presentationFrameDurationUs.load(std::memory_order_relaxed)) / 1000.0;
+
+        m_runtimeSupervisor.Tick(
+            GetCurrentRuntimeTimestampUs(),
+            m_runtimeBudgetPolicy,
+            resourceSnapshot,
+            logicFrameMs,
+            presentationFrameMs,
+            m_runtimeControlState,
+            m_managementHeartbeat,
+            m_logicHeartbeat,
+            m_presentationHeartbeat);
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
 }
 
 void EngineCore::EndFrame()
@@ -961,6 +1521,8 @@ void EngineCore::ResetModuleReferences()
     m_diagnostics = nullptr;
     m_platformModule = nullptr;
     m_platform = nullptr;
+    m_soundModule = nullptr;
+    m_sound = nullptr;
     m_renderModule = nullptr;
     m_render = nullptr;
     m_input = nullptr;
@@ -979,6 +1541,7 @@ void EngineCore::ResetModuleReferences()
     m_nativeUi = nullptr;
     m_context.Logger = nullptr;
     m_context.Platform = nullptr;
+    m_context.Sound = nullptr;
     m_context.Gpu = nullptr;
     m_context.Render = nullptr;
     m_context.Resources = nullptr;
@@ -990,6 +1553,7 @@ void EngineCore::ResetModuleReferences()
 
 void EngineCore::RequestShutdown()
 {
+    m_runtimeControlState.shutdownRequested.store(true, std::memory_order_relaxed);
     m_context.IsRunning = false;
 }
 
@@ -1040,6 +1604,11 @@ std::wstring EngineCore::BuildDebugViewText() const
     const std::wstring leftMouseState = IsMouseButtonDown(InputModule::MouseButton::Left) ? L"Down" : L"Up";
     const std::wstring rightMouseState = IsMouseButtonDown(InputModule::MouseButton::Right) ? L"Down" : L"Up";
     const std::wstring middleMouseState = IsMouseButtonDown(InputModule::MouseButton::Middle) ? L"Down" : L"Up";
+    const PresentationSnapshot latestSnapshot = m_presentationSnapshots.ReadLatest();
+    const ResourceSnapshot runtimeResourceSnapshot = GetRuntimeResourceSnapshotCopy();
+    const std::wstring pressureStateText = ::ToWideString(GetRuntimePressureState());
+    const std::wstring degradedModeText = m_runtimeControlState.degradedMode.load(std::memory_order_relaxed) ? L"Yes" : L"No";
+    const std::wstring emergencyModeText = m_runtimeControlState.emergencyMode.load(std::memory_order_relaxed) ? L"Yes" : L"No";
 
     return
         L"DEBUG VIEW\n"
@@ -1049,6 +1618,19 @@ std::wstring EngineCore::BuildDebugViewText() const
         L"  FPS: " + std::to_wstring(framesPerSecond) + L"\n"
         L"  FPS Limit: " + std::to_wstring(GetFpsLimit()) + L"\n"
         L"  Loops: " + std::to_wstring(GetDiagnosticsLoopCount()) + L"\n"
+        L"  Pressure: " + pressureStateText + L"\n"
+        L"  Degraded: " + degradedModeText + L"\n"
+        L"  Emergency: " + emergencyModeText + L"\n"
+        L"  Logic Throttle: " + std::to_wstring(m_runtimeControlState.logicThrottleLevel.load(std::memory_order_relaxed)) + L"\n"
+        L"  Presentation Throttle: " + std::to_wstring(m_runtimeControlState.presentationThrottleLevel.load(std::memory_order_relaxed)) + L"\n"
+        L"\n"
+        L"Domains\n"
+        L"  Management Heartbeat: " + std::to_wstring(m_managementHeartbeat.tickCount.load(std::memory_order_relaxed)) + L"\n"
+        L"  Logic Heartbeat: " + std::to_wstring(m_logicHeartbeat.tickCount.load(std::memory_order_relaxed)) + L"\n"
+        L"  Presentation Heartbeat: " + std::to_wstring(m_presentationHeartbeat.tickCount.load(std::memory_order_relaxed)) + L"\n"
+        L"  Logic Avg/Max: " + std::to_wstring(m_runtimeStats.logicAverageMs) + L" / " + std::to_wstring(m_runtimeStats.logicMaxMs) + L" ms\n"
+        L"  Presentation Avg/Max: " + std::to_wstring(m_runtimeStats.presentationAverageMs) + L" / " + std::to_wstring(m_runtimeStats.presentationMaxMs) + L" ms\n"
+        L"  Snapshot Version: " + std::to_wstring(latestSnapshot.version) + L"\n"
         L"\n"
         L"Frame Pacing\n"
         L"  Target FPS: " + std::to_wstring(GetTargetFramesPerSecond()) + L"\n"
@@ -1091,6 +1673,13 @@ std::wstring EngineCore::BuildDebugViewText() const
         L"  Queued/Loading: " + std::to_wstring(GetResourceCountByState(ResourceState::Queued)) + L" / " + std::to_wstring(GetResourceCountByState(ResourceState::Loading)) + L"\n"
         L"  Processing/Uploading: " + std::to_wstring(GetResourceCountByState(ResourceState::Processing)) + L" / " + std::to_wstring(GetResourceCountByState(ResourceState::Uploading)) + L"\n"
         L"  Ready/Failed: " + std::to_wstring(GetResourceCountByState(ResourceState::Ready)) + L" / " + std::to_wstring(GetResourceCountByState(ResourceState::Failed)) + L"\n"
+        L"  Physical Memory Free: " + std::to_wstring(runtimeResourceSnapshot.availablePhysicalMemoryBytes / (1024ULL * 1024ULL)) +
+        L" / " + std::to_wstring(runtimeResourceSnapshot.totalPhysicalMemoryBytes / (1024ULL * 1024ULL)) + L" MB\n"
+        L"  Memory Pressure: " + std::to_wstring(runtimeResourceSnapshot.memoryPressureRatio * 100.0) + L"%\n"
+        L"  Disk Free: " + std::to_wstring(runtimeResourceSnapshot.diskFreeBytes / (1024ULL * 1024ULL * 1024ULL)) +
+        L" / " + std::to_wstring(runtimeResourceSnapshot.diskTotalBytes / (1024ULL * 1024ULL * 1024ULL)) + L" GB\n"
+        L"  Logical / Physical Cores: " + std::to_wstring(runtimeResourceSnapshot.logicalProcessors) +
+        L" / " + std::to_wstring(runtimeResourceSnapshot.physicalCores) + L"\n"
         L"\n"
         L"Renderer\n"
         L"  Scene Items: " + std::to_wstring(GetRenderSubmittedItemCount()) + L"\n"
@@ -1114,6 +1703,9 @@ std::wstring EngineCore::BuildDebugViewText() const
         L"  Runtime Log: " + ToWideString(GetLogFilePath()) + L"\n"
         L"  Window Open/Active: " + std::wstring(IsWindowOpen() ? L"Yes" : L"No") + L" / " + std::wstring(IsWindowActive() ? L"Yes" : L"No") + L"\n"
         L"  Window Size: " + std::to_wstring(GetWindowWidth()) + L" x " + std::to_wstring(GetWindowHeight()) + L"\n"
+        L"  Sound Available: " + std::wstring(IsSoundAvailable() ? L"Yes" : L"No") + L"\n"
+        L"  Sound Volume: " + std::to_wstring(GetMasterVolume()) + L"\n"
+        L"  Sound Muted: " + std::wstring(IsSoundMuted() ? L"Yes" : L"No") + L"\n"
         L"  GPU Backend: " + ToWideString(GetGpuBackendName()) + L"\n"
         L"  GPU Available: " + std::wstring(IsGpuComputeAvailable() ? L"Yes" : L"No") + L"\n"
         L"  GPU Tracked Resources: " + std::to_wstring(GetGpuTrackedResourceCount()) + L"\n"
@@ -1867,6 +2459,98 @@ bool EngineCore::IsNativeButtonOpen(NativeButtonHandle handle) const
     return m_nativeUi ? m_nativeUi->IsButtonOpen(handle) : false;
 }
 
+EngineCore::NativeLabelHandle EngineCore::CreateNativeLabel(const NativeLabelDesc& desc)
+{
+    return m_nativeUi ? m_nativeUi->CreateLabel(desc) : 0U;
+}
+
+bool EngineCore::DestroyNativeLabel(NativeLabelHandle handle)
+{
+    return m_nativeUi ? m_nativeUi->DestroyLabel(handle) : false;
+}
+
+bool EngineCore::SetNativeLabelText(NativeLabelHandle handle, const std::wstring& text)
+{
+    return m_nativeUi ? m_nativeUi->SetLabelText(handle, text) : false;
+}
+
+bool EngineCore::SetNativeLabelBounds(NativeLabelHandle handle, const NativeControlRect& rect)
+{
+    return m_nativeUi ? m_nativeUi->SetLabelBounds(handle, rect) : false;
+}
+
+bool EngineCore::SetNativeLabelVisible(NativeLabelHandle handle, bool visible)
+{
+    return m_nativeUi ? m_nativeUi->SetLabelVisible(handle, visible) : false;
+}
+
+bool EngineCore::SyncNativeLabels(const std::vector<NativeLabelDesc>& labels)
+{
+    return m_nativeUi ? m_nativeUi->SyncLabels(labels) : false;
+}
+
+bool EngineCore::IsSoundAvailable() const
+{
+    return m_sound ? m_sound->IsAvailable() : false;
+}
+
+bool EngineCore::RegisterSound(const SoundClipDesc& desc)
+{
+    return m_sound ? m_sound->RegisterSound(desc) : false;
+}
+
+void EngineCore::SetMasterVolume(float volume)
+{
+    if (m_sound)
+    {
+        m_sound->SetMasterVolume(volume);
+    }
+}
+
+float EngineCore::GetMasterVolume() const
+{
+    return m_sound ? m_sound->GetMasterVolume() : 1.0f;
+}
+
+void EngineCore::SetSoundMuted(bool muted)
+{
+    if (m_sound)
+    {
+        m_sound->SetMuted(muted);
+    }
+}
+
+bool EngineCore::IsSoundMuted() const
+{
+    return m_sound ? m_sound->IsMuted() : false;
+}
+
+void EngineCore::StopAllSounds()
+{
+    if (m_sound)
+    {
+        m_sound->StopAll();
+    }
+}
+
+bool EngineCore::PlayOneShotSound(const std::string& soundId)
+{
+    return m_sound ? m_sound->PlayOneShot(soundId) : false;
+}
+
+bool EngineCore::PlayLoopSound(const std::string& soundId)
+{
+    return m_sound ? m_sound->PlayLoop(soundId) : false;
+}
+
+void EngineCore::StopSoundById(const std::string& soundId)
+{
+    if (m_sound)
+    {
+        m_sound->StopSound(soundId);
+    }
+}
+
 double EngineCore::GetDeltaTime() const
 {
     return static_cast<double>(m_context.DeltaTime);
@@ -2371,4 +3055,44 @@ void EngineCore::UpdateFramePacing(double frameDurationSeconds)
     {
         m_adaptiveYieldMargin = m_adaptiveSleepMargin * 0.8;
     }
+}
+
+PressureState EngineCore::GetRuntimePressureState() const
+{
+    return m_runtimeControlState.pressureState.load(std::memory_order_relaxed);
+}
+
+PressureState EngineCore::GetRuntimeLogicPressureState() const
+{
+    return m_runtimeControlState.logicPressureState.load(std::memory_order_relaxed);
+}
+
+PressureState EngineCore::GetRuntimePresentationPressureState() const
+{
+    return m_runtimeControlState.presentationPressureState.load(std::memory_order_relaxed);
+}
+
+bool EngineCore::IsRuntimeDegradedMode() const
+{
+    return m_runtimeControlState.degradedMode.load(std::memory_order_relaxed);
+}
+
+bool EngineCore::IsRuntimeEmergencyMode() const
+{
+    return m_runtimeControlState.emergencyMode.load(std::memory_order_relaxed);
+}
+
+int EngineCore::GetRuntimeLogicThrottleLevel() const
+{
+    return m_runtimeControlState.logicThrottleLevel.load(std::memory_order_relaxed);
+}
+
+int EngineCore::GetRuntimePresentationThrottleLevel() const
+{
+    return m_runtimeControlState.presentationThrottleLevel.load(std::memory_order_relaxed);
+}
+
+std::uint64_t EngineCore::GetPublishedPresentationSnapshotVersion() const
+{
+    return m_runtimeStats.publishedSnapshotVersion;
 }

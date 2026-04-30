@@ -80,7 +80,7 @@ namespace
             contentType +
             "\r\nContent-Length: " +
             std::to_string(body.size()) +
-            "\r\nConnection: close\r\nCache-Control: no-store\r\n\r\n" +
+            "\r\nConnection: close\r\nCache-Control: no-store\r\nAccess-Control-Allow-Origin: *\r\n\r\n" +
             body;
     }
 
@@ -372,7 +372,13 @@ void HttpServer::Tick(EngineBridge& bridge)
         {
             const std::string requestedPath = requestLine.substr(methodEnd + 1, pathEnd - methodEnd - 1);
             std::string resolvedPath;
-            if (!BuildResolvedPath(m_webRootPath, m_indexFilePath, requestedPath, resolvedPath))
+            std::string handledContentType;
+            std::string handledBody;
+            if (m_requestHandler && m_requestHandler(requestedPath, handledContentType, handledBody))
+            {
+                response = BuildHttpResponse(200, "OK", handledContentType, handledBody);
+            }
+            else if (!BuildResolvedPath(m_webRootPath, m_indexFilePath, requestedPath, resolvedPath))
             {
                 response = BuildHttpResponse(403, "Forbidden", "text/plain; charset=utf-8", "Forbidden path.");
             }
@@ -410,4 +416,9 @@ const std::string& HttpServer::GetBaseUrl() const
 const std::string& HttpServer::GetWebRootPath() const
 {
     return m_webRootPath;
+}
+
+void HttpServer::SetRequestHandler(RequestHandler handler)
+{
+    m_requestHandler = std::move(handler);
 }

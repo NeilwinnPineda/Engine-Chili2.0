@@ -19,11 +19,17 @@ Current project state:
 - a real `GpuModule` boundary now exists, though generic GPU resource behavior is still scaffold-level
 - resource ownership is now formalized into a first `ResourceModule`; texture resources now decode through WIC into RGBA data, but broader typed asset pipelines are still early
 - prototype entities are now organized under appearance, geometry, object, and scene folders
-- the active sandbox is now a DX lighting and material lab
+- the active sandbox is now the runtime-stability harness
 - the active sandbox harness is now relatively thin:
-  - `SandboxApp` owns live control state for camera, exposure, and primary point light
-  - `SandboxScenePresetCompiler` builds the current lab scene from passive prototype options
-  - the sandbox preloads material assets from `library/materials/`
+  - `SandboxApp` owns app-local runtime stress control state
+  - `RuntimeStressFrameCompiler` builds reusable presentation-stress frames from passive options
+  - `runtime_stress_policy.hpp` owns reusable runtime stress policy helpers
+  - `SandboxScenePresetCompiler` remains the retained renderer validation scene-preset lane
+  - the sandbox registers and exercises the engine sound path
+- the retained renderer validation lane is still the DX lighting and material lab:
+  - `SandboxScenePresetCompiler` can still build the meter-based room scene
+  - material assets still come from `library/materials/`
+  - this lane is no longer the active `SandboxApp` harness
 - the current stable renderer path is now:
   - real DX11 lit 3D scene rendering
   - point-light shading with corrected normal transforms
@@ -31,7 +37,7 @@ Current project state:
   - UV-mapped albedo texture sampling on built-in meshes
   - layered material prototypes lowered into render-owned material data
   - albedo tint blending in the material path
-- the current sandbox scene is a meter-based reference room:
+- the retained renderer validation scene is a meter-based reference room:
   - one rotating `1m x 1m x 1m` cube
   - `4m` surrounding walls and floor
   - no ceiling
@@ -61,22 +67,28 @@ Important note:
 
 ### Likely Working In Sandbox
 
-- prototype-driven frame submission
-  - `SandboxApp` builds a real lighting-lab frame and submits it through `EngineCore`
-- DX11 lit scene path
-  - the sandbox exercises point-light shading, depth buffering, camera movement, and exposure
-- material asset preload path
-  - the sandbox reads stucco assets from `library/materials/stucco/`
-  - the sandbox requests them as texture resources and reports status in the overlay
-- albedo texture sampling
-  - built-in meshes now carry UVs
-  - walls, floor, and the rotating cube now visibly sample the stucco albedo map
-- meter-based scene scaling
-  - the lighting lab is authored around the explicit `1m = 1000 texture pixels` convention
+- runtime policy surface
+  - `SandboxApp` reads pressure, degraded mode, emergency mode, throttle levels, and snapshot version through `AppCapabilities.runtime`
+- runtime-stress presentation path
+  - `SandboxApp` submits prototype-compiled screen-patch stress frames through `RuntimeStressFrameCompiler`
+- sound sandbox path
+  - the sandbox registers a test clip, queues a startup one-shot, and exposes one-shot/loop/volume/mute controls
 - overlay path
-  - the overlay reports camera mode, exposure, light intensity/range, backend, and asset state
+  - the overlay reports runtime pressure, throttle, stress state, sound state, and memory pressure state
 - shutdown path
   - `Escape` requests shutdown and window close requests shutdown
+
+### Likely Working In Retained Validation Lane
+
+- DX11 lit scene path
+  - the retained scene-preset lane exercises point-light shading, depth buffering, camera movement, and exposure
+- material asset preload path
+  - the retained validation scene reads stucco assets from `library/materials/stucco/`
+- albedo texture sampling
+  - built-in meshes now carry UVs
+  - walls, floor, and the rotating cube visibly sample the stucco albedo map
+- meter-based scene scaling
+  - the retained lighting lab is authored around the explicit `1m = 1000 texture pixels` convention
 
 ### Present But Weak / Partial
 
@@ -111,15 +123,115 @@ Important note:
   - the current visible material path is albedo-only
   - normal mapping, height/parallax, and richer material asset binding are still ahead of us
 
-### Suggested Manual Sandbox Test Pass
+### Suggested Manual Runtime-Sandbox Test Pass
+
+- verify startup logs show `SoundModule` startup and successful test-sound registration
+- verify `[1]`, `[2]`, `[3]`, and `[4]` toggle CPU, job, memory, and presentation stress correctly
+- verify `[5]` queues the one-shot sound and `[6]` toggles the looped sound
+- verify `[7/8]` adjust master volume and `[9]` toggles mute
+- verify `[up/down]` changes requested load and the overlay reflects the effective clamped load
+- verify degraded and emergency policy visibly clamp optional stress work
+- verify `Escape` and window close still shut down cleanly
+
+### Suggested Manual Retained-Validation-Lane Test Pass
 
 - verify the `1m` rotating cube sits on the floor correctly and stays inside the `4m` room
 - verify the stucco albedo is visible on walls, floor, and cube
 - verify the albedo repeats at a believable scale under the `1 meter = 1000 texture pixels` rule
-- verify `J/K` and `N/M` clearly change point-light intensity and range
-- verify `-` and `+` clearly change exposure
-- verify camera movement and orbit/manual toggle still feel stable
-- verify `Escape` and window close still shut down cleanly
+- verify point-light intensity, range, and exposure controls still behave correctly in the retained scene-preset lane
+- verify camera movement and orbit/manual toggle still feel stable in that lane
+
+## TODO
+
+Task:
+
+- add a modular SoundModule to the engine
+
+Progress/Note:
+
+- landed on 2026-04-23
+- `SoundModule` now exists as a standard engine module with a backend-agnostic service boundary
+- `EngineContext` now exposes audio through `ISoundService*`
+- first backend is `XAudio2`
+- first supported runtime features:
+  - audio availability query
+  - sound registration by id + source path
+  - PCM wave decode and cached clip loading
+  - master volume
+  - mute
+  - one-shot playback
+  - looped playback
+  - stop-by-id
+  - stop-all
+- implementation shape:
+  - `sound_module.hpp/.cpp`
+  - `audio_backend.hpp`
+  - `audio_backend_xaudio2.hpp/.cpp`
+  - `isound_service.hpp`
+- sandbox proof path:
+  - runtime sandbox registers `library/audio/engine_test_tone.wav`
+  - runtime sandbox queues a startup one-shot
+  - sandbox controls now cover one-shot, loop, volume, mute, and stop-all
+- smoke verification on 2026-04-23:
+  - build succeeded
+  - runtime log confirmed:
+    - `XAudio2AudioBackend initialized.`
+    - `SoundModule started | available = true`
+    - sandbox sound registration succeeded
+    - startup one-shot sound queued
+- next work items:
+  - add sound-handle return values so callers can stop individual playback instances directly instead of only by id
+  - move sound asset loading behind a richer resource/audio asset lane once audio resource kinds exist
+  - add streaming support for longer clips
+  - add buses/listener/spatial audio later without widening the current service boundary
+- status:
+  - first implementation complete
+
+## TODO
+
+Task:
+
+- reshape the engine into a three-domain runtime
+
+Progress/Note:
+
+- architecture direction is now explicit:
+  - `EngineCore` remains the root orchestrator and lifecycle owner
+  - management governs health, pressure, and policy
+  - logic owns authoritative truth and publishes snapshots
+  - presentation consumes committed snapshots without mutating truth
+- first code slice landed on 2026-04-23:
+  - management now runs through a dedicated supervisor thread instead of only a sequential management pass
+  - heartbeats now use wall-clock timestamps so stalled-domain detection does not depend on simulation time continuing to advance
+  - supervisor pressure decisions now read measured logic/presentation domain durations plus sampled system resource pressure
+  - management now classifies logic pressure and presentation pressure separately instead of treating both domains as one blended throttle lane
+  - app/runtime boundary now exists through `AppCapabilities.runtime`
+  - the active runtime sandbox now obeys domain pressure asymmetrically:
+    - CPU/job stress follows logic pressure
+    - presentation stress follows presentation pressure
+    - memory stress follows shared infrastructure pressure
+  - added shared runtime structures:
+    - `RuntimeControlState`
+    - `LoopHeartbeat`
+    - `ResourceSnapshot`
+    - `RuntimeStats`
+    - `PressureState`
+    - `EngineBudgetPolicy`
+    - `PresentationSnapshot`
+  - added runtime components:
+    - `RuntimeSupervisor`
+    - `LogicRuntime`
+    - `PresentationRuntime`
+  - `EngineCore` now owns those runtime structures and runs the three domains explicitly, still sequentially for now
+  - logic now publishes a committed presentation snapshot through `PresentationSnapshotBuffer`
+  - presentation now consumes the published snapshot instead of being framed as future implicit shared-state access
+  - management now samples resource pressure and classifies engine pressure into `Normal`, `Elevated`, `High`, or `Critical`
+- next work items:
+  - separate logic and presentation cadence once snapshot publication is stable enough
+  - decide the right long-term home for OS resource sampling so it does not remain core-local forever
+  - teach sandbox stress scenarios to obey runtime throttle and degraded policy explicitly
+- status:
+  - in progress
 
 ## TODO
 
@@ -150,11 +262,11 @@ Task:
 Progress/Note:
 
 - current behavior:
-  - the sandbox now renders a real DX11-lit room and hero cube
+  - the retained renderer validation lane renders a real DX11-lit room and hero cube
   - albedo maps are decoded, uploaded, and sampled with UVs on built-in meshes
   - albedo tint blending now works in the active material path
   - the primary point light now has first-pass cubemap shadow support
-  - the point light is sandbox-configurable through `SceneLightPrototype`
+  - the point light is configurable through `LightPrototype`
   - camera exposure is sandbox-configurable through `CameraPrototype`
 - current limitation:
   - normal and height maps are loaded conceptually but not sampled in the shader
@@ -325,7 +437,7 @@ Task:
 Progress/Note:
 
 - finished on 2026-04-08
-- the dependency direction rules are now documented in `docs/engine/README.md`
+- the dependency direction rules are now documented in `docs/README.md`
 - intended dependency flow is:
 
 ```text
@@ -356,7 +468,7 @@ Task:
 Progress/Note:
 
 - finished on 2026-04-08
-- the ownership rules are now documented in `docs/engine/README.md`
+- the ownership rules are now documented in `docs/README.md`
 - core ownership rules are now recorded as the intended contract:
   - only the owning module controls lifetime state
   - jobs do work but do not become long-term owners
@@ -374,7 +486,7 @@ Task:
 Progress/Note:
 
 - finished on 2026-04-08
-- the render-surface handoff is now documented in `docs/engine/README.md`
+- the render-surface handoff is now documented in `docs/README.md`
 - proposed surface boundary:
 
 ```cpp
@@ -678,7 +790,7 @@ Progress/Note:
   - `RenderModule` asks `GpuModule` or backend services to execute GPU work
   - frame presents
 - implementation progress on 2026-04-08:
-  - the render path is now documented in `docs/engine/README.md`
+  - the render path is now documented in `docs/README.md`
   - the documented flow now matches the current code shape:
     - `RenderModule` stores render-facing scene state
     - `RenderModule::Update(...)` submits that state through `IGpuService`

@@ -2,6 +2,7 @@
 
 class LoggerModule;
 class IPlatformService;
+class ISoundService;
 class IGpuService;
 class IRenderService;
 class IResourceService;
@@ -17,6 +18,7 @@ struct EngineContext
     double TotalTime = 0.0;
     LoggerModule* Logger = nullptr;
     IPlatformService* Platform = nullptr;
+    ISoundService* Sound = nullptr;
     IGpuService* Gpu = nullptr;
     IRenderService* Render = nullptr;
     IResourceService* Resources = nullptr;

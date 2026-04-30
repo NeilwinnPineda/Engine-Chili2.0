@@ -1,58 +1,53 @@
-# Engine-Chili2.0 Documentation
+# Engine-Chili2.0 Docs
 
-This repo now has separate documentation tracks for the engine and the studio.
+This is the intentionally small documentation surface for the repo.
 
-Docs map:
+## Canonical Docs
 
-- [Engine Core Docs](./engine/README.md)
-- [Future Engine Shape](./engine/future-shape.md)
-- [Studio Docs](../apps/studio/README.md)
-- [CSS Design Guidelines](./css/README.md)
+- [README](./README.md)
+  - surface-level project state, build path, and doc map
+- [API Map](./engine/API_MAP.md)
+  - practical map of the engine-facing call surfaces
+- [TODO](./engine/TODO.md)
+  - architecture progress log and next structural work
+- [ARCHI_RULES](./engine/ARCHI_RULES)
+  - ownership and boundary contract
 - [Visual Language](./css/visual-language.md)
+  - UI direction
+- [theme-light.css](./css/theme-light.css)
+  - single retained docs theme
 
-Current targets:
+## Project Snapshot
 
-- `engine_core` - reusable engine library
-- `engine_sandbox` - feature-test sandbox app
-- `engine_studio` - native studio host that now consumes the engine's web dialog API for CoreTools
+- `engine_core` is the reusable native runtime
+- `engine_sandbox` is the active runtime-stability harness
+- `engine_studio` is the native studio host
+- Studio now owns the first project-management workflow: File dialog, New/Open/Save project actions, and a right-docked Project Explorer
+- the public render path is prototype-driven: `FramePrototype -> RenderFrameData`
+- the runtime is split into management, logic, and presentation domains
+- the sound path is live through `SoundModule`
+- the DX11 path is functional, but materials, indirect lighting, and resource maturity are still in progress
 
-Quick summary:
+## Architecture Snapshot
 
-- `engine_core` owns the native runtime, platform window, rendering, input, diagnostics, jobs, memory, files, GPU capability services, and engine-level web dialogs
-- `engine_sandbox` is the current prototype-driven renderer bring-up app under `apps/sandbox/`
-- `engine_studio` is the editor-facing native host that embeds a WebView2 CoreTools surface inside the main studio window
-- prototype families now live under:
-  - `src/prototypes/presentation/`
-  - `src/prototypes/entity/appearance/`
-  - `src/prototypes/entity/geometry/`
-  - `src/prototypes/entity/object/`
-  - `src/prototypes/entity/scene/`
-  - `src/prototypes/math/`
-- `RenderModule` consumes `FramePrototype` at its boundary and translates it into render-owned internal data before GPU/backend execution
-- the active sandbox is now a progressive hex render-priority algorithm lab using engine-side controller/strategy/compiler pieces and generic screen-space patch submission
-- the sandbox currently proves a recursive screen-region scheduling model:
-  - setup maps occupied screen cells into chainable center-pass paths, for example `A|K|G|D|G|A`
-  - runtime applies parent placeholder passes to descendant cells and lets deeper passes refine them
-  - repeated deep-priority passes are distributed through the runtime loop instead of clumped
-  - the active faux scene contains moving rotating cubes sampled through the scheduler
-- the sandbox harness itself is now thinner:
-  - `ProgressiveHexRenderController` owns strategy lifecycle, adaptive budget, overlay text, and debug-log bundle generation
-  - `MovingCubeSampleScenePrototype` owns the demo sample scene
-- `scenario_shell` has been stripped into reusable scene preset compilers, and `hex_observation` is being mined into diagnostics helpers instead of staying app-owned forever
-- next integration target is still a renderer-facing region update job list that can replace the faux color sampler with real render work
+- apps talk through capabilities and prototype inputs
+- Studio project management is isolated under `apps/studio/src/studio/`
+- Studio filesystem access goes through `FileProxy`, with user projects rooted under `User/<project_id>/`
+- modules own behavior, lifetime, and translation into private execution state
+- `RenderModule` owns frame orchestration
+- `GpuModule` owns backend/device lifetime and generic GPU handles
+- `ResourceModule` owns logical resource state and decoded CPU payloads
+- `EngineCore` is still the integration root, but it is not the intended long-term home for feature logic
 
-Build instructions:
+Read [ARCHI_RULES](./engine/ARCHI_RULES) before changing ownership, boundaries, or app-facing APIs.
+
+## Build
 
 ```powershell
 Remove-Item -Recurse -Force build -ErrorAction SilentlyContinue
 cmake -S . -B build -G Ninja
 cmake --build build
 ```
-
-Codex note:
-
-- Prefer direct CMake commands over wrapper scripts.
-- If Codex sees configure stall around compiler ABI detection or nested try-compile, treat sandbox restrictions as a likely cause and retry with unsandboxed execution when appropriate.
 
 Sanitizer build:
 
@@ -61,3 +56,10 @@ Remove-Item -Recurse -Force build\sanitize -ErrorAction SilentlyContinue
 cmake -S . -B build\sanitize -G Ninja -DENABLE_SANITIZERS=ON
 cmake --build build\sanitize
 ```
+
+## Repo Notes
+
+- prefer direct CMake commands over wrapper scripts
+- expected CI lane is Windows + MSVC + Ninja
+- move durable feature summaries and contracts into `README`, `API_MAP`, `TODO`, or `ARCHI_RULES`
+- `User/` is generated Studio workspace data and should not be committed

@@ -3,19 +3,25 @@
 #include "../app/app_capabilities.hpp"
 #include "engine_context.hpp"
 #include "module_manager.hpp"
+#include "presentation_snapshot_buffer.hpp"
+#include "runtime_domains.hpp"
 #include "../modules/gpu/igpu_service.hpp"
 #include "../modules/gpu/gpu_compute_module.hpp"
 #include "../modules/input/input_module.hpp"
 #include "../modules/memory/memory_module.hpp"
 #include "../modules/prototypes/iprototype_service.hpp"
+#include "../modules/sound/isound_service.hpp"
 
+#include <atomic>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <new>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -24,6 +30,8 @@ class TimerModule;
 class DiagnosticsModule;
 class PlatformModule;
 class IPlatformService;
+class SoundModule;
+class ISoundService;
 class IGpuService;
 class IRenderService;
 class IResourceService;
@@ -40,9 +48,14 @@ class PrototypeModule;
 class AppLoggingCapabilityAdapter;
 class AppResourcesCapabilityAdapter;
 class AppRenderingCapabilityAdapter;
+class AppInputCapabilityAdapter;
+class AppTimeCapabilityAdapter;
 class AppJobsCapabilityAdapter;
 class AppWindowCapabilityAdapter;
 class AppUiCapabilityAdapter;
+class AppNativeUiCapabilityAdapter;
+class AppSoundCapabilityAdapter;
+class AppRuntimeCapabilityAdapter;
 
 class EngineCore
 {
@@ -51,6 +64,7 @@ public:
     using FrameCallback = std::function<void(AppCapabilities&)>;
     using WebDialogHandle = IAppUi::WebDialogHandle;
     using NativeButtonHandle = IAppUi::NativeButtonHandle;
+    using NativeLabelHandle = IAppUi::NativeLabelHandle;
 
 public:
     EngineCore();
@@ -197,6 +211,23 @@ private:
     bool SetNativeButtonVisible(NativeButtonHandle handle, bool visible);
     bool ConsumeNativeButtonPressed(NativeButtonHandle handle);
     bool IsNativeButtonOpen(NativeButtonHandle handle) const;
+    NativeLabelHandle CreateNativeLabel(const NativeLabelDesc& desc);
+    bool DestroyNativeLabel(NativeLabelHandle handle);
+    bool SetNativeLabelText(NativeLabelHandle handle, const std::wstring& text);
+    bool SetNativeLabelBounds(NativeLabelHandle handle, const NativeControlRect& rect);
+    bool SetNativeLabelVisible(NativeLabelHandle handle, bool visible);
+    bool SyncNativeLabels(const std::vector<NativeLabelDesc>& labels);
+
+    bool IsSoundAvailable() const;
+    bool RegisterSound(const SoundClipDesc& desc);
+    void SetMasterVolume(float volume);
+    float GetMasterVolume() const;
+    void SetSoundMuted(bool muted);
+    bool IsSoundMuted() const;
+    void StopAllSounds();
+    bool PlayOneShotSound(const std::string& soundId);
+    bool PlayLoopSound(const std::string& soundId);
+    void StopSoundById(const std::string& soundId);
 
     double GetDeltaTime() const;
     bool IsWindowOpen() const;
@@ -321,9 +352,14 @@ private:
     friend class AppLoggingCapabilityAdapter;
     friend class AppResourcesCapabilityAdapter;
     friend class AppRenderingCapabilityAdapter;
+    friend class AppInputCapabilityAdapter;
+    friend class AppTimeCapabilityAdapter;
     friend class AppJobsCapabilityAdapter;
     friend class AppWindowCapabilityAdapter;
     friend class AppUiCapabilityAdapter;
+    friend class AppNativeUiCapabilityAdapter;
+    friend class AppSoundCapabilityAdapter;
+    friend class AppRuntimeCapabilityAdapter;
 
     void BeginFrame();
     void ServicePlatform();
@@ -334,7 +370,18 @@ private:
     void ServiceScheduledWork();
     void ServiceDeferredWork();
     void SynchronizeCriticalWork();
+    void ExecuteRenderPresentation();
     void EndFrame();
+    void ExecuteLogicDomain();
+    void ExecutePresentationDomain();
+    void ExecuteManagementDomain();
+    void PublishPresentationSnapshot();
+    void RefreshResourceSnapshot();
+    ResourceSnapshot GetRuntimeResourceSnapshotCopy() const;
+    std::uint64_t GetCurrentRuntimeTimestampUs() const;
+    void StartRuntimeSupervisor();
+    void StopRuntimeSupervisor();
+    void RunRuntimeSupervisorLoop();
 
     void ProcessPlatformEvents();
     void HandleWindowStateChanges();
@@ -345,6 +392,14 @@ private:
     static std::wstring ToWideString(const std::string& value);
     void ApplyTargetFramesPerSecond(double framesPerSecond);
     void UpdateFramePacing(double frameDurationSeconds);
+    PressureState GetRuntimePressureState() const;
+    PressureState GetRuntimeLogicPressureState() const;
+    PressureState GetRuntimePresentationPressureState() const;
+    bool IsRuntimeDegradedMode() const;
+    bool IsRuntimeEmergencyMode() const;
+    int GetRuntimeLogicThrottleLevel() const;
+    int GetRuntimePresentationThrottleLevel() const;
+    std::uint64_t GetPublishedPresentationSnapshotVersion() const;
 
 private:
     using FrameClock = std::chrono::steady_clock;
@@ -357,6 +412,8 @@ private:
     DiagnosticsModule* m_diagnostics = nullptr;
     PlatformModule* m_platformModule = nullptr;
     IPlatformService* m_platform = nullptr;
+    SoundModule* m_soundModule = nullptr;
+    ISoundService* m_sound = nullptr;
     RenderModule* m_renderModule = nullptr;
     IRenderService* m_render = nullptr;
     InputModule* m_input = nullptr;
@@ -377,9 +434,14 @@ private:
     std::unique_ptr<AppLoggingCapabilityAdapter> m_loggingCapability;
     std::unique_ptr<AppResourcesCapabilityAdapter> m_resourcesCapability;
     std::unique_ptr<AppRenderingCapabilityAdapter> m_renderingCapability;
+    std::unique_ptr<AppInputCapabilityAdapter> m_inputCapability;
+    std::unique_ptr<AppTimeCapabilityAdapter> m_timeCapability;
     std::unique_ptr<AppJobsCapabilityAdapter> m_jobsCapability;
     std::unique_ptr<AppWindowCapabilityAdapter> m_windowCapability;
     std::unique_ptr<AppUiCapabilityAdapter> m_uiCapability;
+    std::unique_ptr<AppNativeUiCapabilityAdapter> m_nativeUiCapability;
+    std::unique_ptr<AppSoundCapabilityAdapter> m_soundCapability;
+    std::unique_ptr<AppRuntimeCapabilityAdapter> m_runtimeCapability;
 
     bool m_initialized = false;
     bool m_running = false;
@@ -411,4 +473,21 @@ private:
     double m_adaptiveSleepMargin = 0.0010;
     double m_adaptiveYieldMargin = 0.0002;
     bool m_isBehindSchedule = false;
+    RuntimeControlState m_runtimeControlState;
+    EngineBudgetPolicy m_runtimeBudgetPolicy;
+    ResourceSnapshot m_runtimeResourceSnapshot;
+    mutable std::mutex m_runtimeResourceSnapshotMutex;
+    RuntimeStats m_runtimeStats;
+    LoopHeartbeat m_managementHeartbeat;
+    LoopHeartbeat m_logicHeartbeat;
+    LoopHeartbeat m_presentationHeartbeat;
+    PresentationSnapshotBuffer m_presentationSnapshots;
+    RuntimeSupervisor m_runtimeSupervisor;
+    LogicRuntime m_logicRuntime;
+    PresentationRuntime m_presentationRuntime;
+    FrameClock::time_point m_runtimeWallClockStartTime{};
+    std::atomic<std::uint64_t> m_logicFrameDurationUs{0};
+    std::atomic<std::uint64_t> m_presentationFrameDurationUs{0};
+    std::atomic<bool> m_runtimeSupervisorStopRequested{false};
+    std::thread m_runtimeSupervisorThread;
 };

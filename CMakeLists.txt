@@ -21,4 +21,6 @@ include(cmake/sanitizers.cmake)
 
 add_subdirectory(core)
 add_subdirectory(apps/sandbox)
+add_subdirectory(apps/pong)
+add_subdirectory(apps/space_invaders)
 add_subdirectory(apps/studio)
