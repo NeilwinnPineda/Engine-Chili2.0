@@ -13,10 +13,10 @@
 namespace
 {
     constexpr const char* kStudioRoot = "apps/studio";
-    constexpr const char* kPackagedCoreToolsEntry = "coretools/runtime/shell/index.html";
-    constexpr const char* kPackagedStudioTopBarEntry = "coretools/runtime/topbar/studio-top.html";
-    constexpr const char* kSourceCoreToolsEntry = "apps/studio/coretools/runtime/shell/index.html";
-    constexpr const char* kSourceStudioTopBarEntry = "apps/studio/coretools/runtime/topbar/studio-top.html";
+    constexpr const char* kPackagedCoreToolsEntry = "coretools/runtime/left-bar/left-bar.html";
+    constexpr const char* kPackagedStudioTopBarEntry = "coretools/runtime/top-bar/top-bar.html";
+    constexpr const char* kSourceCoreToolsEntry = "apps/studio/coretools/runtime/left-bar/left-bar.html";
+    constexpr const char* kSourceStudioTopBarEntry = "apps/studio/coretools/runtime/top-bar/top-bar.html";
 
     std::string GetExecutableDirectory()
     {
@@ -199,7 +199,7 @@ std::string EngineBridge::BuildStatusMessage() const
         GetStudioRootPath() +
         " | coretools=" +
         GetCoreToolsContentPath() +
-        " | topbar=" +
+        " | top_bar=" +
         GetStudioTopBarContentPath();
 }
 

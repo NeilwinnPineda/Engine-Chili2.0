@@ -20,7 +20,7 @@ namespace studio
         dialogDesc.title = L"Studio Console";
         dialogDesc.contentPath = contentPath;
         dialogDesc.dockMode = WebDialogDockMode::Bottom;
-        dialogDesc.dockSize = 176;
+        dialogDesc.dockSize = 196;
         dialogDesc.dockInsetLeft = dockInsetLeft;
         dialogDesc.dockInsetRight = dockInsetRight;
         dialogDesc.visible = true;

@@ -5,30 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Studio Console</title>
     <link rel="stylesheet" href="../shared/studio.css">
-    <link rel="stylesheet" href="./console.css">
 </head>
-<body>
+<body class="console-surface">
     <main class="console-shell">
-        <header class="console-header">
-            <div>
-                <p class="kicker">Bottom Bar</p>
-                <h1>Console</h1>
-            </div>
-            <span class="console-status">Studio CLI</span>
-        </header>
+        <section class="console-container">
+            <header class="console-header">
+                <span class="console-status">Studio CLI</span>
+            </header>
 
-        <section class="runtime-viewport" aria-live="polite">
-            <strong>Runtime Viewport</strong>
-            <span id="runtime-viewport-text">No runtime running.</span>
+            <section class="console-output" id="console-output" aria-live="polite"></section>
+
+            <form class="console-input-row" id="console-form">
+                <span class="prompt">&gt;</span>
+                <input id="console-input" type="text" autocomplete="off" spellcheck="false" value="help">
+                <button class="primary-action" type="submit">Run</button>
+            </form>
         </section>
-
-        <section class="console-output" id="console-output" aria-live="polite"></section>
-
-        <form class="console-input-row" id="console-form">
-            <span class="prompt">&gt;</span>
-            <input id="console-input" type="text" autocomplete="off" spellcheck="false" value="help">
-            <button class="primary-action" type="submit">Run</button>
-        </form>
     </main>
 
     <script>
@@ -36,7 +28,6 @@
             const form = document.getElementById("console-form");
             const input = document.getElementById("console-input");
             const output = document.getElementById("console-output");
-            const runtimeViewportText = document.getElementById("runtime-viewport-text");
 
             function appendLine(kind, text) {
                 const line = document.createElement("p");
@@ -64,19 +55,6 @@
                     });
             }
 
-            function refreshRuntimeViewport() {
-                fetch("http://127.0.0.1:37620/studio/runtime/viewport")
-                    .then(function (response) {
-                        return response.json();
-                    })
-                    .then(function (result) {
-                        runtimeViewportText.textContent = result.viewportText || "No runtime running.";
-                    })
-                    .catch(function () {
-                        runtimeViewportText.textContent = "Runtime viewport bridge did not respond.";
-                    });
-            }
-
             form.addEventListener("submit", function (event) {
                 event.preventDefault();
                 const command = input.value.trim();
@@ -86,8 +64,6 @@
 
             appendLine("response", "Studio console ready. Type 'help'.");
             input.focus();
-            refreshRuntimeViewport();
-            setInterval(refreshRuntimeViewport, 200);
         }());
     </script>
 </body>

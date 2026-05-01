@@ -38,11 +38,12 @@ apps/studio
 |   |   |   `-- assets/
 |   |   `-- public/
 |   |-- runtime/
-|   |   |-- index.html
-|   |   |-- app.js
-|   |   |-- style.css
-|   |   `-- panels/
-|   |       `-- hello-panel.js
+|   |   |-- top-bar/
+|   |   |-- left-bar/
+|   |   |-- right-bar/
+|   |   |-- bottom-bar/
+|   |   |-- dialogs/
+|   |   `-- shared/
 |   `-- README.md
 |-- runtime_test/
 `-- src/
@@ -103,9 +104,9 @@ Current startup path:
 2. `StudioApp::Initialize()` initializes `StudioHost`
 3. `StudioHost::Initialize()` initializes `EngineBridge`
 4. `EngineBridge` initializes `EngineCore`
-5. `StudioHost` creates a docked-left web dialog through `EngineCore`
+5. `StudioHost` creates docked web dialogs through `EngineCore`
 6. the engine `WebViewModule` creates and owns the WebView2 host surface
-7. the WebView2 surface loads `apps/studio/coretools/runtime/index.html`
+7. the WebView2 surfaces load named CoreTools runtime files such as `top-bar/top-bar.html` and `left-bar/left-bar.html`
 8. `StudioHost::Run()` keeps ticking the native engine while the engine updates docked dialog layout
 
 Temporary stop paths:

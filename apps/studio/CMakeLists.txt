@@ -71,6 +71,8 @@ add_custom_command(TARGET Studio POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "$<TARGET_FILE:EngineRuntime>"
         "$<TARGET_FILE_DIR:Studio>/$<TARGET_FILE_NAME:EngineRuntime>"
+    COMMAND ${CMAKE_COMMAND} -E rm -rf
+        "$<TARGET_FILE_DIR:Studio>/coretools/runtime"
     COMMAND ${CMAKE_COMMAND} -E make_directory
         "$<TARGET_FILE_DIR:Studio>/coretools/runtime"
     COMMAND ${CMAKE_COMMAND} -E copy_directory

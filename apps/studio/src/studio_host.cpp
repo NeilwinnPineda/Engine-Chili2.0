@@ -462,7 +462,7 @@ bool StudioHost::InitializeStudioHttpBridge()
     config.host = "127.0.0.1";
     config.port = kStudioHttpPort;
     config.webRootPath = GetCoreToolsRuntimeRootPath();
-    config.indexFilePath = "topbar/studio-top.html";
+    config.indexFilePath = "top-bar/top-bar.html";
 
     m_httpServer.SetRequestHandler(
         [this](const std::string& path, std::string& outContentType, std::string& outBody)
@@ -1122,10 +1122,10 @@ std::string StudioHost::GetCoreToolsRuntimeRootPath() const
     std::string coreToolsEntry = m_bridge.GetCoreToolsContentPath();
     std::replace(coreToolsEntry.begin(), coreToolsEntry.end(), '\\', '/');
 
-    constexpr const char* kShellEntry = "/shell/index.html";
-    if (EndsWithPath(coreToolsEntry, kShellEntry))
+    constexpr const char* kLeftBarEntry = "/left-bar/left-bar.html";
+    if (EndsWithPath(coreToolsEntry, kLeftBarEntry))
     {
-        coreToolsEntry.resize(coreToolsEntry.size() - std::string(kShellEntry).size());
+        coreToolsEntry.resize(coreToolsEntry.size() - std::string(kLeftBarEntry).size());
         return coreToolsEntry;
     }
 
@@ -1157,20 +1157,20 @@ std::string StudioHost::GetCoreToolsRuntimeContentPath(const std::string& relati
 
 std::string StudioHost::GetFileManagementDialogContentPath() const
 {
-    return GetCoreToolsRuntimeContentPath("file/file-management.html");
+    return GetCoreToolsRuntimeContentPath("dialogs/file-dialog.html");
 }
 
 std::string StudioHost::GetNewProjectDialogContentPath() const
 {
-    return GetCoreToolsRuntimeContentPath("file/new-project.html");
+    return GetCoreToolsRuntimeContentPath("dialogs/new-project-dialog.html");
 }
 
 std::string StudioHost::GetProjectExplorerContentPath() const
 {
-    return GetCoreToolsRuntimeContentPath("panels/project-explorer/project-explorer.html");
+    return GetCoreToolsRuntimeContentPath("right-bar/right-bar.html");
 }
 
 std::string StudioHost::GetConsoleContentPath() const
 {
-    return GetCoreToolsRuntimeContentPath("bottom/console.html");
+    return GetCoreToolsRuntimeContentPath("bottom-bar/bottom-bar.html");
 }

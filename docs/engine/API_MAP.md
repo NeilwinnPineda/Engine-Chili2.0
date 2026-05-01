@@ -610,10 +610,12 @@ Generated starter files:
 
 Current Studio HTML surfaces:
 
-- top bar: `apps/studio/coretools/runtime/studio-top.html`
-- File dialog: `apps/studio/coretools/runtime/file-management.html`
-- New Project dialog: `apps/studio/coretools/runtime/new-project.html`
-- Project Explorer: `apps/studio/coretools/runtime/project-explorer.html`
+- top bar: `apps/studio/coretools/runtime/top-bar/top-bar.html`
+- left bar: `apps/studio/coretools/runtime/left-bar/left-bar.html`
+- right bar: `apps/studio/coretools/runtime/right-bar/right-bar.html`
+- bottom bar: `apps/studio/coretools/runtime/bottom-bar/bottom-bar.html`
+- File dialog: `apps/studio/coretools/runtime/dialogs/file-dialog.html`
+- New Project dialog: `apps/studio/coretools/runtime/dialogs/new-project-dialog.html`
 
 Studio host routes:
 

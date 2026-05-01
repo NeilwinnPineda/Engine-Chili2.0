@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Explorer</title>
+    <link rel="stylesheet" href="../shared/studio.css">
+</head>
+
+<body class="project-explorer-surface">
+    <aside class="explorer-shell">
+        <section class="right-panel-container">
+            <nav class="right-panel-toggle" aria-label="Right panel view">
+                <button class="right-panel-tab is-active" type="button" data-panel-view="explorer" aria-pressed="true">
+                    Explorer
+                </button>
+                <button class="right-panel-tab" type="button" data-panel-view="inspector" aria-pressed="false">
+                    Inspector
+                </button>
+            </nav>
+
+            <section class="right-panel-view is-active" id="explorer-view" data-panel-view="explorer"
+                aria-label="Project explorer">
+
+                <button class="refresh-button" type="button" id="refresh-button" title="Refresh" aria-label="Refresh">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="lucide lucide-refresh-cw">
+                        <path d="M21 12a9 9 0 1 1-3.87-7.37" />
+                        <path d="M21 3v6h-6" />
+                    </svg>
+                </button>
+
+                <section class="tree-panel" id="tree-panel" aria-label="Project files">
+
+                    <div class="tree-root">MyProject</div>
+
+                    <ul class="tree">
+
+                        <li class="tree-item is-folder is-open">
+                            <div class="tree-row">
+                                <span class="tree-expander">v</span>
+                                <span class="tree-label">Assets</span>
+                            </div>
+
+                            <ul>
+                                <li class="tree-item is-folder is-open">
+                                    <div class="tree-row">
+                                        <span class="tree-expander">v</span>
+                                        <span class="tree-label">Models</span>
+                                    </div>
+
+                                    <ul>
+                                        <li class="tree-item is-file">
+                                            <div class="tree-row">
+                                                <span class="tree-expander"></span>
+                                                <span class="tree-label">house.fbx</span>
+                                            </div>
+                                        </li>
+
+                                        <li class="tree-item is-file">
+                                            <div class="tree-row">
+                                                <span class="tree-expander"></span>
+                                                <span class="tree-label">tree.obj</span>
+                                            </div>
+                                        </li>
+                                    </ul>
+                                </li>
+
+                                <li class="tree-item is-folder">
+                                    <div class="tree-row">
+                                        <span class="tree-expander">&gt;</span>
+                                        <span class="tree-label">Textures</span>
+                                    </div>
+                                </li>
+
+                                <li class="tree-item is-folder">
+                                    <div class="tree-row">
+                                        <span class="tree-expander">&gt;</span>
+                                        <span class="tree-label">Audio</span>
+                                    </div>
+                                </li>
+                            </ul>
+                        </li>
+
+                        <li class="tree-item is-folder is-open">
+                            <div class="tree-row">
+                                <span class="tree-expander">v</span>
+                                <span class="tree-label">Scenes</span>
+                            </div>
+
+                            <ul>
+                                <li class="tree-item is-file is-active">
+                                    <div class="tree-row">
+                                        <span class="tree-expander"></span>
+                                        <span class="tree-label">main.scene</span>
+                                    </div>
+                                </li>
+
+                                <li class="tree-item is-file">
+                                    <div class="tree-row">
+                                        <span class="tree-expander"></span>
+                                        <span class="tree-label">prototype_blockout_long_name.scene</span>
+                                    </div>
+                                </li>
+                            </ul>
+                        </li>
+
+                        <li class="tree-item is-folder is-open">
+                            <div class="tree-row">
+                                <span class="tree-expander">v</span>
+                                <span class="tree-label">Scripts</span>
+                            </div>
+
+                            <ul>
+                                <li class="tree-item is-file">
+                                    <div class="tree-row">
+                                        <span class="tree-expander"></span>
+                                        <span class="tree-label">camera_controller.lua</span>
+                                    </div>
+                                </li>
+
+                                <li class="tree-item is-file">
+                                    <div class="tree-row">
+                                        <span class="tree-expander"></span>
+                                        <span class="tree-label">player_movement_and_interaction.lua</span>
+                                    </div>
+                                </li>
+                            </ul>
+                        </li>
+
+                        <li class="tree-item is-folder">
+                            <div class="tree-row">
+                                <span class="tree-expander">&gt;</span>
+                                <span class="tree-label">Config</span>
+                            </div>
+                        </li>
+
+                    </ul>
+
+                </section>
+
+                <section class="selection-panel" aria-live="polite">
+                    <strong>Selected</strong>
+                    <span id="selected-path">Scenes/main.scene</span>
+                </section>
+
+            </section>
+
+            <section class="right-panel-view inspector-panel" id="inspector-view" data-panel-view="inspector"
+                aria-label="Inspector" hidden>
+
+                <div class="inspector-header">
+                    <p class="kicker">Inspector</p>
+                    <h2>Selected Object</h2>
+                    <span class="inspector-path">Scene/Main Camera</span>
+                </div>
+
+                <section class="inspector-section" aria-label="Identity">
+                    <div class="inspector-row">
+                        <strong>Name</strong>
+                        <span>Main Camera</span>
+                    </div>
+
+                    <div class="inspector-row">
+                        <strong>Type</strong>
+                        <span>Camera</span>
+                    </div>
+
+                    <div class="inspector-row">
+                        <strong>ID</strong>
+                        <span>obj_camera_001</span>
+                    </div>
+                </section>
+
+                <section class="inspector-section" aria-label="Transform">
+                    <h3>Transform</h3>
+
+                    <div class="inspector-vector">
+                        <strong>Position</strong>
+                        <span>X 0.00</span>
+                        <span>Y 1.60</span>
+                        <span>Z 5.00</span>
+                    </div>
+
+                    <div class="inspector-vector">
+                        <strong>Rotation</strong>
+                        <span>X -12.0 deg</span>
+                        <span>Y 0.0 deg</span>
+                        <span>Z 0.0 deg</span>
+                    </div>
+
+                    <div class="inspector-vector">
+                        <strong>Scale</strong>
+                        <span>X 1.00</span>
+                        <span>Y 1.00</span>
+                        <span>Z 1.00</span>
+                    </div>
+                </section>
+
+                <section class="inspector-section" aria-label="Components">
+                    <h3>Components</h3>
+
+                    <div class="component-card">
+                        <strong>Camera</strong>
+                        <span>FOV 60 deg | Near 0.1 | Far 200</span>
+                    </div>
+
+                    <div class="component-card">
+                        <strong>Script</strong>
+                        <span>camera_controller.lua</span>
+                    </div>
+                </section>
+
+                <section class="inspector-section" aria-label="Object State">
+                    <h3>State</h3>
+
+                    <div class="inspector-row">
+                        <strong>Visible</strong>
+                        <span>Yes</span>
+                    </div>
+
+                    <div class="inspector-row">
+                        <strong>Locked</strong>
+                        <span>No</span>
+                    </div>
+
+                    <div class="inspector-row">
+                        <strong>Layer</strong>
+                        <span>Default</span>
+                    </div>
+                </section>
+
+            </section>
+
+
+
+            <div class="modal-scrim" id="rename-modal" hidden>
+                <section class="rename-dialog" role="dialog" aria-modal="true" aria-labelledby="rename-title">
+                    <h2 id="rename-title">Rename item</h2>
+                    <input id="rename-input" type="text" autocomplete="off">
+                    <p class="rename-error" id="rename-error"></p>
+                    <div class="rename-actions">
+                        <button type="button" id="rename-cancel">Cancel</button>
+                        <button type="button" id="rename-confirm">Rename</button>
+                    </div>
+                </section>
+            </div>
+        </section>
+    </aside>
+
+    <script>
+        (function () {
+            const treePanel = document.getElementById("tree-panel");
+            const selectedPath = document.getElementById("selected-path");
+            const refreshButton = document.getElementById("refresh-button");
+            const renameModal = document.getElementById("rename-modal");
+            const renameInput = document.getElementById("rename-input");
+            const renameError = document.getElementById("rename-error");
+            const renameCancel = document.getElementById("rename-cancel");
+            const renameConfirm = document.getElementById("rename-confirm");
+            const rightPanelTitle = document.getElementById("right-panel-title");
+            const panelTabs = Array.from(document.querySelectorAll(".right-panel-tab"));
+            const panelViews = Array.from(document.querySelectorAll(".right-panel-view"));
+            const expanded = new Set();
+            let contextEntry = null;
+
+            function setPanelView(viewName) {
+                for (const tab of panelTabs) {
+                    const active = tab.dataset.panelView === viewName;
+                    tab.classList.toggle("is-active", active);
+                    tab.setAttribute("aria-pressed", active ? "true" : "false");
+                }
+
+                for (const view of panelViews) {
+                    const active = view.dataset.panelView === viewName;
+                    view.classList.toggle("is-active", active);
+                    view.hidden = !active;
+                }
+
+                if (rightPanelTitle) {
+                    rightPanelTitle.textContent = viewName === "inspector" ? "Inspector" : "Explorer";
+                }
+                refreshButton.hidden = viewName !== "explorer";
+            }
+
+            function makeNode(entry) {
+                const row = document.createElement("div");
+                row.className = "tree-row" + (entry.isDirectory ? " is-directory" : " is-file");
+                row.dataset.path = entry.logicalPath;
+
+                const toggle = document.createElement("button");
+                toggle.className = "tree-toggle";
+                toggle.type = "button";
+                toggle.textContent = entry.isDirectory ? (expanded.has(entry.logicalPath) || entry.isRoot ? "v" : ">") : "";
+                toggle.disabled = !entry.isDirectory;
+
+                const label = document.createElement("button");
+                label.className = "tree-label";
+                label.type = "button";
+                label.textContent = entry.name;
+
+                row.appendChild(toggle);
+                row.appendChild(label);
+
+                const container = document.createElement("div");
+                container.className = "tree-node";
+                container.appendChild(row);
+
+                label.addEventListener("contextmenu", function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    contextEntry = entry;
+                    openNativeContextMenu(entry, event.screenX, event.screenY);
+                });
+
+                if (entry.isDirectory && (expanded.has(entry.logicalPath) || entry.isRoot)) {
+                    const children = document.createElement("div");
+                    children.className = "tree-children";
+                    for (const child of entry.children || []) {
+                        children.appendChild(makeNode(child));
+                    }
+                    container.appendChild(children);
+                }
+
+                toggle.addEventListener("click", function () {
+                    if (expanded.has(entry.logicalPath)) {
+                        expanded.delete(entry.logicalPath);
+                    } else {
+                        expanded.add(entry.logicalPath);
+                    }
+                    refresh();
+                });
+
+                label.addEventListener("click", function () {
+                    if (entry.isDirectory) {
+                        if (expanded.has(entry.logicalPath)) {
+                            expanded.delete(entry.logicalPath);
+                        } else {
+                            expanded.add(entry.logicalPath);
+                        }
+                        refresh();
+                        return;
+                    }
+
+                    fetch("http://127.0.0.1:37620/studio/project-explorer/select?path=" + encodeURIComponent(entry.logicalPath))
+                        .then(function (response) { return response.json(); })
+                        .then(function (result) {
+                            selectedPath.textContent = result.logicalPath || result.message;
+                            refresh();
+                        })
+                        .catch(function () {
+                            selectedPath.textContent = "Selection failed.";
+                        });
+                });
+
+                return container;
+            }
+
+            function getEntryName(entry) {
+                if (!entry || !entry.logicalPath) {
+                    return "";
+                }
+
+                const slash = entry.logicalPath.lastIndexOf("/");
+                return slash < 0 ? entry.logicalPath : entry.logicalPath.substring(slash + 1);
+            }
+
+            function openRenameModal() {
+                if (!contextEntry || contextEntry.isRoot) {
+                    selectedPath.textContent = "Cannot rename the project root.";
+                    return;
+                }
+
+                renameInput.value = getEntryName(contextEntry);
+                renameError.textContent = "";
+                renameModal.hidden = false;
+                renameInput.focus();
+                renameInput.select();
+            }
+
+            function closeRenameModal() {
+                renameModal.hidden = true;
+                renameError.textContent = "";
+            }
+
+            function renameProjectItem(logicalPath, newName) {
+                renameConfirm.disabled = true;
+                fetch(
+                    "http://127.0.0.1:37620/studio/project-explorer/rename?path=" +
+                    encodeURIComponent(logicalPath) +
+                    "&newName=" +
+                    encodeURIComponent(newName))
+                    .then(function (response) { return response.json(); })
+                    .then(function (result) {
+                        if (!result.ok) {
+                            renameError.textContent = result.message || "Rename failed.";
+                            return;
+                        }
+
+                        selectedPath.textContent = result.newLogicalPath || result.logicalPath || "Renamed.";
+                        closeRenameModal();
+                        refresh();
+                    })
+                    .catch(function () {
+                        renameError.textContent = "Rename bridge did not respond.";
+                    })
+                    .finally(function () {
+                        renameConfirm.disabled = false;
+                    });
+            }
+
+            function openEntry(entry) {
+                if (entry.isDirectory) {
+                    if (expanded.has(entry.logicalPath)) {
+                        expanded.delete(entry.logicalPath);
+                    } else {
+                        expanded.add(entry.logicalPath);
+                    }
+                    refresh();
+                    return;
+                }
+
+                fetch("http://127.0.0.1:37620/studio/project-explorer/select?path=" + encodeURIComponent(entry.logicalPath))
+                    .then(function (response) { return response.json(); })
+                    .then(function (result) {
+                        selectedPath.textContent = result.logicalPath || result.message;
+                        refresh();
+                    })
+                    .catch(function () {
+                        selectedPath.textContent = "Selection failed.";
+                    });
+            }
+
+            function applyContextAction(action) {
+                if (!contextEntry || !action) {
+                    return;
+                }
+
+                if (action === "open") {
+                    openEntry(contextEntry);
+                    return;
+                }
+
+                if (action === "rename") {
+                    openRenameModal();
+                }
+            }
+
+            function openNativeContextMenu(entry, screenX, screenY) {
+                fetch(
+                    "http://127.0.0.1:37620/studio/project-explorer/context-menu?path=" +
+                    encodeURIComponent(entry.logicalPath) +
+                    "&screenX=" +
+                    encodeURIComponent(String(screenX)) +
+                    "&screenY=" +
+                    encodeURIComponent(String(screenY)) +
+                    "&isRoot=" +
+                    encodeURIComponent(entry.isRoot ? "true" : "false"))
+                    .then(function (response) { return response.json(); })
+                    .then(function (result) {
+                        if (!result.ok) {
+                            selectedPath.textContent = result.message || "Context menu failed.";
+                            return;
+                        }
+
+                        applyContextAction(result.action);
+                    })
+                    .catch(function () {
+                        selectedPath.textContent = "Native context menu bridge did not respond.";
+                    });
+            }
+
+            function render(data) {
+                treePanel.innerHTML = "";
+                if (!data.ok) {
+                    treePanel.innerHTML = "<p class=\"empty-text\"></p>";
+                    treePanel.querySelector(".empty-text").textContent = data.message || "Directory read failed.";
+                    return;
+                }
+
+                if (!data.hasProject) {
+                    treePanel.innerHTML = "<p class=\"empty-text\">No project open.</p>";
+                    selectedPath.textContent = "None";
+                    return;
+                }
+
+                selectedPath.textContent = data.selectedPath || "None";
+                treePanel.appendChild(makeNode(data.root));
+            }
+
+            function refresh() {
+                refreshButton.disabled = true;
+                fetch("http://127.0.0.1:37620/studio/project-explorer/tree")
+                    .then(function (response) { return response.json(); })
+                    .then(render)
+                    .catch(function () {
+                        if (!treePanel.querySelector(".tree")) {
+                            treePanel.innerHTML = "<p class=\"empty-text\">Project Explorer bridge did not respond.</p>";
+                        }
+                    })
+                    .finally(function () {
+                        refreshButton.disabled = false;
+                    });
+            }
+
+            renameCancel.addEventListener("click", closeRenameModal);
+            renameConfirm.addEventListener("click", function () {
+                if (!contextEntry) {
+                    return;
+                }
+
+                renameProjectItem(contextEntry.logicalPath, renameInput.value);
+            });
+            renameInput.addEventListener("keydown", function (event) {
+                if (event.key === "Enter") {
+                    renameConfirm.click();
+                }
+
+                if (event.key === "Escape") {
+                    closeRenameModal();
+                }
+            });
+
+            for (const tab of panelTabs) {
+                tab.addEventListener("click", function () {
+                    setPanelView(tab.dataset.panelView || "explorer");
+                });
+            }
+
+            refreshButton.addEventListener("click", refresh);
+            window.addEventListener("load", refresh);
+            setInterval(refresh, 2500);
+        }());
+    </script>
+</body>
+
+</html>

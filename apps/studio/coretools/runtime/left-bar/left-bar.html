@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoreTools</title>
+    <link rel="stylesheet" href="../shared/studio.css">
+</head>
+
+<body class="coretools-surface">
+    <main class="coretools-shell">
+        <section class="panel launcher-panel" aria-label="CoreTools launcher">
+            <section class="tool-component" data-tool-component="core-commands" aria-label="Core commands">
+                <div class="tool-grid tool-grid--core" role="list" aria-label="Core commands">
+                    <!-- Select: choose one object or element as the active target -->
+                    <button class="tool-tile" type="button" role="listitem" title="Select" aria-label="Select">
+                        <span class="tool-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-mouse-pointer-2">
+                                <path d="m4 4 7.07 17 2.51-7.39L21 11.07z" />
+                            </svg></span>
+                    </button>
+
+                    <!-- Focus: frame or center the current selection in the viewport -->
+                    <button class="tool-tile" type="button" role="listitem" title="Focus" aria-label="Focus">
+                        <span class="tool-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-scan">
+                                <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+                                <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+                                <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+                                <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+                            </svg></span>
+                    </button>
+
+                    <!-- Copy: store selected object/data without removing it -->
+                    <button class="tool-tile" type="button" role="listitem" title="Copy" aria-label="Copy">
+                        <span class="tool-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy">
+                                <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                                <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                            </svg></span>
+                    </button>
+
+                    <!-- Paste: place copied object/data into the scene -->
+                    <button class="tool-tile" type="button" role="listitem" title="Paste" aria-label="Paste">
+                        <span class="tool-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clipboard-paste">
+                                <path d="M15 2H9a2 2 0 0 0-2 2v2h10V4a2 2 0 0 0-2-2Z" />
+                                <path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8" />
+                                <path d="M16 4h2a2 2 0 0 1 2 2v7" />
+                                <path d="M21 17H11" />
+                                <path d="m15 13-4 4 4 4" />
+                            </svg></span>
+                    </button>
+
+                    <!-- Duplicate: create an immediate copy of the selection -->
+                    <button class="tool-tile" type="button" role="listitem" title="Duplicate" aria-label="Duplicate">
+                        <span class="tool-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy-plus">
+                                <line x1="15" x2="15" y1="12" y2="18" />
+                                <line x1="12" x2="18" y1="15" y2="15" />
+                                <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                                <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                            </svg></span>
+                    </button>
+
+                    <!-- Delete: remove selected object/data from the scene -->
+                    <button class="tool-tile" type="button" role="listitem" title="Delete" aria-label="Delete">
+                        <span class="tool-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-2">
+                                <path d="M3 6h18" />
+                                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                                <path d="M10 11v6" />
+                                <path d="M14 11v6" />
+                            </svg></span>
+                    </button>
+
+                    <!-- Hide: make selected object invisible without deleting it -->
+                    <button class="tool-tile" type="button" role="listitem" title="Hide" aria-label="Hide">
+                        <span class="tool-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eye-off">
+                                <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+                                <path d="M6.61 6.61A13.52 13.52 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+                                <line x1="2" x2="22" y1="2" y2="22" />
+                                <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                            </svg></span>
+                    </button>
+
+                    <!-- Lock: prevent selected object from being edited or moved -->
+                    <button class="tool-tile" type="button" role="listitem" title="Lock" aria-label="Lock">
+                        <span class="tool-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-lock">
+                                <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                            </svg></span>
+                    </button>
+
+                    <!-- Inspect: open details/properties for the selected object -->
+                    <button class="tool-tile" type="button" role="listitem" title="Inspect" aria-label="Inspect">
+                        <span class="tool-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search">
+                                <circle cx="11" cy="11" r="8" />
+                                <path d="m21 21-4.3-4.3" />
+                            </svg></span>
+                    </button>
+
+                    <!-- Group: combine selected objects under one editable group -->
+                    <button class="tool-tile" type="button" role="listitem" title="Group" aria-label="Group">
+                        <span class="tool-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-boxes">
+                                <path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z" />
+                                <path d="m7 16.5-4.74-2.85" />
+                                <path d="m7 16.5 5-3" />
+                                <path d="M7 16.5v5.17" />
+                                <path d="M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z" />
+                                <path d="m17 16.5-5-3" />
+                                <path d="m17 16.5 4.74-2.85" />
+                                <path d="M17 16.5v5.17" />
+                                <path d="M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z" />
+                                <path d="M12 8 7.26 5.15" />
+                                <path d="m12 8 4.74-2.85" />
+                                <path d="M12 13.5V8" />
+                            </svg></span>
+                    </button>
+
+                    <!-- Undo: step backward through the command history -->
+                    <button class="tool-tile" type="button" role="listitem" title="Undo" aria-label="Undo">
+                        <span class="tool-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-undo-2">
+                                <path d="M9 14 4 9l5-5" />
+                                <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5A5.5 5.5 0 0 1 14.5 20H11" />
+                            </svg></span>
+                    </button>
+
+                    <!-- Redo: step forward through the command history -->
+                    <button class="tool-tile" type="button" role="listitem" title="Redo" aria-label="Redo">
+                        <span class="tool-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-redo-2">
+                                <path d="m15 14 5-5-5-5" />
+                                <path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13" />
+                            </svg></span>
+                    </button>
+                </div>
+            </section>
+        </section>
+    </main>
+</body>
+
+</html>

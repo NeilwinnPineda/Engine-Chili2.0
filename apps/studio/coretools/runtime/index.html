@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Studio Preview</title>
+    <link rel="stylesheet" href="./shared/studio.css">
+    <style>
+        :root {
+            --preview-top-h: 76px;
+            --preview-left-w: 128px;
+            --preview-right-w: 300px;
+            --preview-bottom-h: 196px;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            background: #100c0b;
+        }
+
+        .studio-preview {
+            width: 100vw;
+            height: 100vh;
+            display: grid;
+            grid-template-columns: var(--preview-left-w) minmax(0, 1fr) var(--preview-right-w);
+            grid-template-rows: var(--preview-top-h) minmax(0, 1fr) var(--preview-bottom-h);
+            background: #100c0b;
+        }
+
+        .preview-frame {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            display: block;
+            background: var(--studio-bg);
+        }
+
+        .preview-top {
+            grid-column: 1 / 4;
+            grid-row: 1;
+            z-index: 4;
+        }
+
+        .preview-left {
+            grid-column: 1;
+            grid-row: 2 / 4;
+            z-index: 3;
+        }
+
+        .preview-right {
+            grid-column: 3;
+            grid-row: 2 / 4;
+            z-index: 3;
+        }
+
+        .preview-bottom {
+            grid-column: 2;
+            grid-row: 3;
+            z-index: 2;
+        }
+
+        .preview-viewport {
+            min-width: 0;
+            min-height: 0;
+            grid-column: 2;
+            grid-row: 2;
+            position: relative;
+            overflow: hidden;
+            background:
+                linear-gradient(90deg, rgba(255, 242, 228, 0.035) 1px, transparent 1px),
+                linear-gradient(180deg, rgba(255, 242, 228, 0.035) 1px, transparent 1px),
+                radial-gradient(circle at 50% 44%, rgba(216, 132, 63, 0.18), transparent 34%),
+                #100c0b;
+            background-size:
+                48px 48px,
+                48px 48px,
+                auto,
+                auto;
+        }
+
+        .preview-viewport::before,
+        .preview-viewport::after {
+            content: "";
+            position: absolute;
+            pointer-events: none;
+        }
+
+        .preview-viewport::before {
+            inset: 0;
+            border: 1px solid rgba(255, 213, 168, 0.08);
+            border-left: 0;
+            border-right: 0;
+        }
+
+        .preview-viewport::after {
+            left: 50%;
+            top: 50%;
+            width: min(34vw, 360px);
+            aspect-ratio: 16 / 9;
+            transform: translate(-50%, -50%);
+            border: 1px solid rgba(255, 213, 168, 0.18);
+            background:
+                linear-gradient(135deg, rgba(255, 242, 228, 0.07), transparent),
+                rgba(36, 26, 24, 0.38);
+            box-shadow: 0 18px 52px rgba(0, 0, 0, 0.34);
+        }
+
+        @media (max-width: 900px) {
+            :root {
+                --preview-right-w: 260px;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .studio-preview {
+                grid-template-columns: var(--preview-left-w) minmax(0, 1fr);
+            }
+
+            .preview-top {
+                grid-column: 1 / 3;
+            }
+
+            .preview-right {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="studio-preview">
+        <iframe class="preview-frame preview-top" src="./top-bar/top-bar.html" title="Top bar"></iframe>
+        <iframe class="preview-frame preview-left" src="./left-bar/left-bar.html" title="Left bar"></iframe>
+        <section class="preview-viewport" aria-label="Runtime viewport preview"></section>
+        <iframe class="preview-frame preview-right" src="./right-bar/right-bar.html" title="Right bar"></iframe>
+        <iframe class="preview-frame preview-bottom" src="./bottom-bar/bottom-bar.html" title="Bottom bar"></iframe>
+    </main>
+</body>
+</html>

@@ -6,13 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Studio Top Bar</title>
     <link rel="stylesheet" href="../shared/studio.css">
-    <link rel="stylesheet" href="./studio-top.css">
 </head>
 
-<body>
+<body class="studio-topbar-surface">
     <header class="studio-topbar" aria-label="Studio top bar">
         <section class="brand-block" aria-label="Studio identity">
-            <p class="kicker">Engine Chili 2.0</p>
+            <p class="kicker">Chili Engine 2.0</p>
             <div class="brand-row">
                 <h1>Studio</h1>
             </div>
@@ -79,7 +78,8 @@
 
                 <span class="bar-spacer" aria-hidden="true">|</span>
 
-                <button class="top-action pipeline-action is-active" type="button" data-stage="scene" aria-pressed="true">
+                <button class="top-action pipeline-action is-active" type="button" data-stage="scene"
+                    aria-pressed="true">
                     Scene
                 </button>
 
@@ -166,27 +166,18 @@
         <section class="status-strip" aria-label="Session status">
             <div class="status-chip status-ok">
                 <span class="status-dot"></span>
-                <span id="engine-status">Engine Ready</span>
             </div>
 
             <span class="bar-spacer" aria-hidden="true">|</span>
 
             <div class="status-chip status-warn" id="warn-chip">
                 <span class="status-dot"></span>
-                <span id="warn-text">0 Warnings</span>
             </div>
 
             <span class="bar-spacer" aria-hidden="true">|</span>
 
             <div class="status-chip status-error" id="error-chip">
                 <span class="status-dot"></span>
-                <span id="error-text">0 Errors</span>
-            </div>
-
-            <span class="bar-spacer" aria-hidden="true">|</span>
-
-            <div class="status-chip muted">
-                Top UI Docked
             </div>
         </section>
     </header>
