@@ -791,6 +791,11 @@ void StudioHost::Shutdown()
         m_bridge.GetCapabilities().ui->DestroyNativeButton(m_frameGizmoButtonHandle);
         m_frameGizmoButtonHandle = 0U;
     }
+    if (m_snapDebugButtonHandle != 0U)
+    {
+        m_bridge.GetCapabilities().ui->DestroyNativeButton(m_snapDebugButtonHandle);
+        m_snapDebugButtonHandle = 0U;
+    }
 
     m_projectExplorerPanel.Close(m_bridge.GetCapabilities());
     m_consolePanel.Close(m_bridge.GetCapabilities());
@@ -909,6 +914,19 @@ bool StudioHost::InitializeFrameGizmoButton()
         return false;
     }
 
+    NativeButtonDesc snapButtonDesc;
+    snapButtonDesc.name = "SnapDebugToggle";
+    snapButtonDesc.text = L"Snaps";
+    snapButtonDesc.rect = NativeControlRect{ 0, 0, 88, 32 };
+    snapButtonDesc.visible = true;
+    snapButtonDesc.enabled = true;
+
+    m_snapDebugButtonHandle = capabilities.ui->CreateNativeButton(snapButtonDesc);
+    if (m_snapDebugButtonHandle == 0U)
+    {
+        return false;
+    }
+
     UpdateFrameGizmoButtonLayout();
     return true;
 }
@@ -931,6 +949,9 @@ void StudioHost::UpdateFrameGizmoButtonLayout()
     capabilities.ui->SetNativeButtonBounds(
         m_frameGizmoButtonHandle,
         NativeControlRect{ x, y, 108, 32 });
+    capabilities.ui->SetNativeButtonBounds(
+        m_snapDebugButtonHandle,
+        NativeControlRect{ x - 96, y, 88, 32 });
 }
 
 void StudioHost::UpdateLayoutState()
@@ -1734,6 +1755,14 @@ void StudioHost::TickRuntime()
     {
         m_previewBackgroundAlt = !m_previewBackgroundAlt;
         PushConsoleMessage(std::string("Gizmo: preview background ") + (m_previewBackgroundAlt ? "alt" : "default") + ".");
+    }
+    if (capabilities.ui &&
+        m_snapDebugButtonHandle != 0U &&
+        capabilities.ui->ConsumeNativeButtonPressed(m_snapDebugButtonHandle))
+    {
+        const bool visible = !m_runtimeHost.IsSnapDebugVisible();
+        m_runtimeHost.SetSnapDebugVisible(visible);
+        PushConsoleMessage(std::string("Snap debug: ") + (visible ? "visible" : "hidden") + ".");
     }
 
     studio_runtime::RuntimeInput input;

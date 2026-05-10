@@ -88,6 +88,7 @@ private:
     std::vector<studio::ProxyLibraryEntry> m_proxyEntries;
     std::string m_selectedSceneLogicalPath;
     IAppUi::NativeButtonHandle m_frameGizmoButtonHandle = 0U;
+    IAppUi::NativeButtonHandle m_snapDebugButtonHandle = 0U;
     bool m_previewBackgroundAlt = false;
     bool m_hasLoggedLayout = false;
     int m_lastLayoutWindowWidth = -1;

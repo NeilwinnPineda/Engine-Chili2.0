@@ -6,11 +6,14 @@
 #include "prototypes/presentation/item.hpp"
 #include "prototypes/presentation/pass.hpp"
 #include "prototypes/presentation/view.hpp"
+#include "prototypes/snap/snap_resolver.hpp"
+#include "prototypes/snap/snap_settings.hpp"
 #include "input/input_binding.h"
 
 #include <algorithm>
 #include <sstream>
 #include <string>
+#include <vector>
 
 namespace studio_runtime
 {
@@ -299,6 +302,21 @@ namespace studio_runtime
         }
     }
 
+    void StudioRuntimeHost::SetSnapDebugVisible(bool visible)
+    {
+        m_snapDebugVisible = visible;
+        if (!visible)
+        {
+            m_snapDebugReport = SnapDebugReport{};
+            m_snapDebugResult = SnapResult{};
+        }
+    }
+
+    bool StudioRuntimeHost::IsSnapDebugVisible() const
+    {
+        return m_snapDebugVisible;
+    }
+
     std::string StudioRuntimeHost::CreateFallbackScene()
     {
         ApplyDefaultSceneTemplate(m_world, m_studioCamera);
@@ -311,6 +329,7 @@ namespace studio_runtime
         const ViewportRect& viewportRect)
     {
         m_inputSystem.Evaluate(input.rawInput);
+        UpdateSnapDebug(input, viewportRect);
 
         if (m_inputSystem.Down("Studio", "PanCamera"))
         {
@@ -402,6 +421,54 @@ namespace studio_runtime
         m_viewportText = debug.str();
     }
 
+    void StudioRuntimeHost::UpdateSnapDebug(
+        const RuntimeInput& input,
+        const ViewportRect& viewportRect)
+    {
+        if (!m_snapDebugVisible)
+        {
+            return;
+        }
+
+        Ray ray;
+        if (!m_studioCamera.TryScreenPointToRay(input.mouseX, input.mouseY, viewportRect, ray))
+        {
+            m_snapDebugReport = SnapDebugReport{};
+            m_snapDebugResult = SnapResult{};
+            m_snapDebugReport.summary = "Snap debug: cursor outside viewport.";
+            return;
+        }
+
+        std::vector<SnapCandidate> candidates;
+        for (const EntityId id : m_world.GetEntityList())
+        {
+            EntityInfo info;
+            if (!m_world.GetEntityInfo(id, info) || !info.hasRenderable || !info.renderable.visible)
+            {
+                continue;
+            }
+
+            candidates.push_back(MakeObjectOriginCandidate(
+                info.transform.translation,
+                static_cast<std::uint64_t>(id),
+                info.name.c_str()));
+        }
+
+        SnapContext context;
+        context.activeTool = SnapToolKind::Translate;
+        context.probe.hasRay = true;
+        context.probe.ray.origin = ray.origin;
+        context.probe.ray.direction = ray.direction;
+
+        SnapSettings settings = CreateDefaultSnapSettings();
+        settings.maxSnapDistance = 0.65f;
+        settings.enabledTypes = { SnapCandidateType::ObjectOrigin };
+
+        m_snapDebugReport = SnapDebugReport{};
+        SnapResolver resolver;
+        m_snapDebugResult = resolver.Resolve(context, settings, candidates, nullptr, &m_snapDebugReport);
+    }
+
     FramePrototype StudioRuntimeHost::BuildWorldFrame() const
     {
         ViewPrototype view;
@@ -455,6 +522,47 @@ namespace studio_runtime
         originMesh.material.emissive.color = ColorPrototype::FromBytes(180, 210, 235);
         originMesh.material.emissive.intensity = 0.08f;
         view.items.push_back(originMarker);
+
+        if (m_snapDebugVisible)
+        {
+            for (const SnapDecisionEntry& entry : m_snapDebugReport.entries)
+            {
+                ItemPrototype snapMarker;
+                snapMarker.kind = ItemKind::Object3D;
+                snapMarker.object3D.transform.translation = entry.resolvedPosition + Vector3(0.0f, 0.16f, 0.0f);
+                snapMarker.object3D.transform.scale = entry.accepted
+                    ? Vector3(0.10f, 0.10f, 0.10f)
+                    : Vector3(0.065f, 0.065f, 0.065f);
+
+                MeshPrototype& snapMesh = snapMarker.object3D.GetPrimaryMesh();
+                snapMesh.builtInKind = BuiltInMeshKind::Diamond;
+                snapMesh.material.baseLayer.albedo = entry.accepted
+                    ? ColorPrototype::FromBytes(255, 210, 96)
+                    : ColorPrototype::FromBytes(95, 112, 128);
+                snapMesh.material.emissive.enabled = true;
+                snapMesh.material.emissive.color = entry.accepted
+                    ? ColorPrototype::FromBytes(255, 225, 130)
+                    : ColorPrototype::FromBytes(80, 105, 125);
+                snapMesh.material.emissive.intensity = entry.accepted ? 0.22f : 0.08f;
+                view.items.push_back(snapMarker);
+            }
+
+            if (m_snapDebugResult.didSnap)
+            {
+                ItemPrototype selectedSnap;
+                selectedSnap.kind = ItemKind::Object3D;
+                selectedSnap.object3D.transform.translation = m_snapDebugResult.snapPosition + Vector3(0.0f, 0.28f, 0.0f);
+                selectedSnap.object3D.transform.scale = Vector3(0.16f, 0.16f, 0.16f);
+
+                MeshPrototype& selectedMesh = selectedSnap.object3D.GetPrimaryMesh();
+                selectedMesh.builtInKind = BuiltInMeshKind::Octahedron;
+                selectedMesh.material.baseLayer.albedo = ColorPrototype::FromBytes(98, 240, 170);
+                selectedMesh.material.emissive.enabled = true;
+                selectedMesh.material.emissive.color = ColorPrototype::FromBytes(98, 240, 170);
+                selectedMesh.material.emissive.intensity = 0.35f;
+                view.items.push_back(selectedSnap);
+            }
+        }
 
         // Sky light plane — always present as an editor constant regardless of scene contents,
         // same as the grid. Provides a visible overhead reference for directional lighting.

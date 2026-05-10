@@ -8,6 +8,8 @@
 #include "runtime/studio_picking_service.hpp"
 #include "modules/render/render_types.hpp"
 #include "input/input_system.h"
+#include "prototypes/snap/snap_debug.hpp"
+#include "prototypes/snap/snap_types.hpp"
 
 #include <memory>
 #include <string>
@@ -48,11 +50,14 @@ namespace studio_runtime
         const RuntimeWorld& GetWorld() const;
         void SetActiveTool(StudioTool tool);
         void ConfigurePrototypeLibrary(const std::string& proxyFolderPath);
+        void SetSnapDebugVisible(bool visible);
+        bool IsSnapDebugVisible() const;
 
     private:
         void ConfigureInputContexts();
         std::string CreateFallbackScene();
         void HandleEditInput(const RuntimeInput& input, const ViewportRect& viewportRect);
+        void UpdateSnapDebug(const RuntimeInput& input, const ViewportRect& viewportRect);
         FramePrototype BuildWorldFrame() const;
 
     private:
@@ -68,8 +73,11 @@ namespace studio_runtime
         InputSystem m_inputSystem;
         ProjectRuntimeDesc m_activeProject;
         FramePrototype m_renderFrame;
+        SnapDebugReport m_snapDebugReport;
+        SnapResult m_snapDebugResult;
         StudioRuntimePlayState m_state = StudioRuntimePlayState::Edit;
         std::string m_viewportText = "Edit Mode.";
+        bool m_snapDebugVisible = false;
         bool m_hasRenderFrame = true;
     };
 }
