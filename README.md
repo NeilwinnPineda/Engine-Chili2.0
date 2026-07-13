@@ -11,6 +11,12 @@ Current targets:
 
 Current state:
 
+- the active revival plan is documented in `docs/engine/REVIVAL_PLAN.md`
+- automated testing is not yet established: CI currently checks wrapper builds and artifacts, while runtime validation remains mostly manual
+- Studio's active localhost HTTP bridge serves its embedded HTML tools; it is not an AI bridge
+- generic WebSocket/command transport remains incomplete, and no AI/LLM/MCP application bridge is implemented yet
+- the next structural order is build stabilization, automated tests, preview/export runtime parity, a secure shared command service, then AI tooling
+
 - the old sandbox executable is no longer part of the top-level build; rapid Pong testing now moves through `apps/pong`'s `PongPreview`
 - the front-facing app architecture is being iterated through real game trials, currently using `apps/pong`, future game runtime DLLs, and `apps/_template` to pressure-test what app authors and players see and do
 - older one-off sandbox variants have been stripped down; `hex_observation` remains in archive while its debug types/logic migrate into `src/modules/diagnostics/`
@@ -159,4 +165,5 @@ Sandbox status:
   - basic shadow sampling in the scene shader
 - normal and height maps are declared in material prototypes but are not yet part of final shading
 
-See [docs/README.md](docs/README.md) for the current architecture, feature list, and API inventory.
+See [docs/README.md](docs/README.md) for the documentation map and
+[docs/engine/REVIVAL_PLAN.md](docs/engine/REVIVAL_PLAN.md) for the active execution order.

@@ -12,6 +12,8 @@ This is the intentionally small documentation surface for the repo.
   - practical map of the engine-facing call surfaces
 - [TODO](./engine/TODO.md)
   - architecture progress log and next structural work
+- [Revival Plan](./engine/REVIVAL_PLAN.md)
+  - active stabilization, testing, runtime-parity, and AI-bridge execution order
 - [ARCHI_RULES](./engine/ARCHI_RULES)
   - ownership and boundary contract
 - [Visual Language](./css/visual-language.md)
@@ -20,6 +22,12 @@ This is the intentionally small documentation surface for the repo.
   - single retained docs theme
 
 ## Project Snapshot
+
+- the active revival order is: stabilize build truth -> add automated tests -> unify preview/export runtime truth -> extract a secure command service -> add the AI bridge
+- no CTest/unit/integration suite is currently registered; existing validation is mainly manual, diagnostic, or trial-app driven
+- Studio's localhost HTTP bridge is an active embedded-UI transport, not an AI bridge
+- `CommandRouter` and WebSocket code are incomplete scaffolding, and no AI/LLM/MCP application bridge is currently implemented
+- artifact-based Studio preview is still transitional; project runtime DLL loading must replace the in-process preview shortcut
 
 - the build/runtime direction is moving to a thin launcher executable plus DLL-loaded engine and app/tool modules
 - `EngineRuntime` is the reusable native runtime DLL target

@@ -60,6 +60,29 @@ Target direction:
 - jobs perform work
 - memory defines allocation policy
 
+## Active Revival Order
+
+The current execution plan is maintained in [REVIVAL_PLAN.md](./REVIVAL_PLAN.md).
+
+Priority order:
+
+1. recover a coherent source tree and build target graph
+2. establish automated CTest, unit, and integration coverage
+3. make Studio Preview and exported output load the same project runtime DLL
+4. extract one secure Studio command/query service shared by UI and automation
+5. add a read-first, validated AI bridge over that command service
+
+Current testing/bridge reality:
+
+- GitHub Actions performs wrapper configure/build plus artifact existence checks, but the Windows build is currently failing
+- no registered automated test suite currently protects project, scene, runtime, or export behavior
+- `/studio/scene/roundtrip-check` and smoke helpers are diagnostics, not an automated suite
+- the active localhost HTTP bridge serves embedded Studio tools
+- the WebSocket and `CommandRouter` path is not integrated into the running Studio host
+- no AI model client, MCP tool server, authorization boundary, or AI mutation protocol exists yet
+
+Do not begin write-capable AI integration before the build, tests, and runtime-truth phases are stable.
+
 ## Sandbox Scan
 
 This section is a code-scan snapshot of what the current sandbox app appears to exercise.
