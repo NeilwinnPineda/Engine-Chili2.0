@@ -18,8 +18,11 @@ namespace studio
         bool success = false;
         std::string projectId;
         std::string logicalBuildPath;
+        std::string builtRuntimeOutputPath;
         std::string runtimeOutputPath;
+        std::string packagedRuntimeOutputPath;
         std::string executablePath;
+        std::string packagedExecutablePath;
         std::string logicalExportPath;
         std::string message;
         std::string error;

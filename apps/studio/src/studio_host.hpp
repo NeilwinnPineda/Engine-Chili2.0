@@ -2,14 +2,18 @@
 
 #include "bridge/engine_bridge.hpp"
 #include "commands/command_router.hpp"
-#include "runtime/studio_runtime_host.hpp"
+#include "runtime/host/studio_runtime_host.hpp"
 #include "studio/file_management_dialog.hpp"
 #include "studio/new_project_dialog.hpp"
 #include "studio/scene_settings_dialog.hpp"
+#include "studio/workspace_settings_dialog.hpp"
 #include "studio/proxy_library.hpp"
 #include "studio/project_explorer_panel.hpp"
 #include "studio/studio_layout_state.hpp"
 #include "studio/studio_console_panel.hpp"
+#include "studio/studio_command_query_service.hpp"
+#include "studio/studio_build_request_service.hpp"
+#include "studio/studio_workspace_request_service.hpp"
 #include "studio/studio_build_system.hpp"
 #include "studio/studio_file_actions.hpp"
 #include "transport/http_server.hpp"
@@ -25,6 +29,8 @@ public:
     void Shutdown();
 
 private:
+    struct RuntimeViewportDiagnostics;
+
     void LogStudioShellStatus();
     bool InitializeStudioHttpBridge();
     bool InitializeTopBarDialog();
@@ -37,9 +43,13 @@ private:
     void UpdateLayoutState();
     void UpdateFrameGizmoButtonLayout();
     void PresentRuntimeViewport();
+    RuntimeViewportDiagnostics BuildRuntimeViewportDiagnostics() const;
     std::string BuildRuntimeViewportDisplayText() const;
     std::string BuildRuntimeViewportJson() const;
     std::string BuildSelectedEntityJson() const;
+    std::string BuildEntityListJson() const;
+    std::string BuildProjectStatusJson() const;
+    std::string BuildRuntimeStatusJson() const;
     std::string BuildSceneRenderSettingsJson() const;
     std::string BuildInteractionFeedJson(std::size_t cursor) const;
     std::string GetDefaultScenePath() const;
@@ -48,14 +58,17 @@ private:
     bool OpenFileManagementDialog();
     bool OpenNewProjectDialog();
     bool OpenSceneSettingsDialog();
+    bool OpenWorkspaceSettingsDialog();
     studio::OpenProjectResult OpenProjectFromFolderPicker();
     std::string ShowProjectContextMenu(int screenX, int screenY);
+    std::string ShowWorkspaceContextMenu(int screenX, int screenY);
     std::string ShowProjectExplorerContextMenu(int screenX, int screenY, bool canRename);
     std::string GetCoreToolsRuntimeRootPath() const;
     std::string GetCoreToolsRuntimeContentPath(const std::string& relativePath) const;
     std::string GetFileManagementDialogContentPath() const;
     std::string GetNewProjectDialogContentPath() const;
     std::string GetSceneSettingsDialogContentPath() const;
+    std::string GetWorkspaceSettingsDialogContentPath() const;
     std::string GetProjectExplorerContentPath() const;
     std::string GetConsoleContentPath() const;
     std::string GetStudioLogFilePath() const;
@@ -77,6 +90,9 @@ private:
     std::string BuildLibraryEntryJson(const std::string& entryId) const;
     studio_runtime::ProjectRuntimeDesc MakeRuntimeDescWithSceneOverride(const studio::StudioProject& project) const;
     void StartPreviewForSelectedScene();
+    bool SetCoreToolsVisible(bool visible);
+    bool IsCoreToolsVisible() const;
+    std::string BuildWorkspaceStateJson(const std::string& message = std::string()) const;
 
 private:
     EngineBridge m_bridge;
@@ -85,9 +101,13 @@ private:
     studio::FileManagementDialog m_fileManagementDialog;
     studio::NewProjectDialog m_newProjectDialog;
     studio::SceneSettingsDialog m_sceneSettingsDialog;
+    studio::WorkspaceSettingsDialog m_workspaceSettingsDialog;
     studio::ProjectExplorerPanel m_projectExplorerPanel;
     studio::StudioLayoutState m_layoutState;
     studio::StudioConsolePanel m_consolePanel;
+    StudioCommandQueryService m_commandQueries;
+    studio::StudioBuildRequestService m_buildRequests;
+    studio::StudioWorkspaceRequestService m_workspaceRequests;
     studio::StudioBuildSystem m_buildSystem;
     studio::ProxyLibrary m_proxyLibrary;
     studio::StudioFileActions m_fileActions;
@@ -97,17 +117,17 @@ private:
     std::string m_proxyFolderPath;
     std::vector<studio::ProxyLibraryEntry> m_proxyEntries;
     std::string m_selectedSceneLogicalPath;
-    IAppUi::NativeButtonHandle m_frameGizmoButtonHandle = 0U;
+    IAppUi::NativeButtonHandle m_cameraGizmoButtonHandle = 0U;
     IAppUi::NativeButtonHandle m_gridToggleButtonHandle = 0U;
     IAppUi::NativeButtonHandle m_snapDebugButtonHandle = 0U;
     IAppUi::NativeButtonHandle m_viewRenderModeButtonHandle = 0U;
-    bool m_previewBackgroundAlt = false;
     bool m_hasLoggedLayout = false;
     int m_lastLayoutWindowWidth = -1;
     int m_lastLayoutWindowHeight = -1;
     ViewportRect m_lastLayoutViewportRect{};
     EngineCore::WebDialogHandle m_topBarDialogHandle = 0U;
     EngineCore::WebDialogHandle m_coreToolsDialogHandle = 0U;
+    bool m_coreToolsVisible = true;
     std::size_t m_cursorDebugFrameCounter = 0U;
     double m_cursorDebugConsoleAccumulator = 0.0;
     std::string m_lastCursorDebugConsoleLine;

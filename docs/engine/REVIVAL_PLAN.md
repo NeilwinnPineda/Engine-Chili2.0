@@ -19,14 +19,15 @@ control surface is allowed to mutate projects.
 ## Current Reality
 
 - the working tree contains an unfinished Studio runtime-directory reorganization
-- documented Pong targets and expected CI artifacts do not match the current CMake wiring
-- the Windows GitHub Actions build is failing
-- Studio has no registered CTest/unit/integration test suite
+- Pong DLL/preview targets and wrapper aliases have been restored in the working tree, pending wrapper verification
+- the Windows GitHub Actions lane is pinned to VS2022 x64, pending a green CI verification run
+- a first headless CTest contract suite is registered and wired into CI
 - current validation is mostly manual, diagnostic, or trial-app driven
 - Studio runs an active localhost HTTP bridge for its embedded HTML tools
-- `CommandRouter` and WebSocket transport are incomplete integration scaffolding
-- there is no implemented AI/LLM/MCP bridge in the application
-- artifact-based Studio preview is still unimplemented; preview uses an in-process runtime shortcut
+- `CommandRouter` now has a read-first permission policy and an active localhost HTTP ingress; WebSocket remains incomplete scaffolding
+- a dependency-free read-only MCP adapter now fronts the validated command ingress; there is no embedded model client
+- a versioned create/tick/destroy runtime ABI, Studio DLL loader, and generic preview host are implemented in the working tree
+- generated projects now build a runtime DLL and preview host, and export rewrites the package manifest to the adjacent artifact paths
 
 ## Non-Negotiable Contracts
 
@@ -180,3 +181,33 @@ Exit criteria:
 
 Phases 1 through 3 take priority. The AI bridge must be built on the tested real
 runtime path, not used as a second implementation of that path.
+
+## Working-Tree Progress (Pending Runtime Verification)
+
+- restored `PongRuntime` and the thin `PongPreview` loader target
+- restored wrapper aliases and documented output ownership
+- added `EngineContractTests`, `test.cmd`, and the CI test step
+- added contract checks for scene round trips, malformed-scene rollback,
+  entity lifecycle, render presets, Pong simulation, input consumption, and
+  Studio command authorization
+- pinned CI to the stable VS2022 x64 toolchain image
+- added a read-only-by-default Studio command endpoint
+- extracted the read-only workspace/project/entity/runtime query JSON into a dedicated Studio command-query service so `StudioHost` no longer owns that query assembly directly
+- extracted build/export route orchestration into `StudioBuildRequestService`
+- extracted workspace layout save and visibility-toggle route orchestration into `StudioWorkspaceRequestService`
+- hardened the localhost HTTP transport against cross-site ingress and
+  unbounded request headers
+- added a per-session Studio cookie and same-origin WebView navigation
+- added the versioned runtime ABI, validated Studio DLL loader, generic preview
+  host, and project-template DLL generation
+- made Studio consume the frame produced by the loaded artifact and preserve it
+  while paused
+- made Build App create a clean package containing the preview host,
+  project-runtime DLL, `engine.dll`, manifest, config, scenes, and assets
+- added a fixed-allowlist read-only MCP adapter with request-id validation,
+  response limits, and audit records
+- added contract coverage for project artifact-state reporting through both the
+  native Studio test target and the MCP adapter test
+
+These changes are deliberately marked pending: repository rules require the
+wrapper build lane before they can be treated as verified checkpoints.

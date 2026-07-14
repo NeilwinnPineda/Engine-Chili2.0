@@ -74,12 +74,18 @@ Priority order:
 
 Current testing/bridge reality:
 
-- GitHub Actions performs wrapper configure/build plus artifact existence checks, but the Windows build is currently failing
-- no registered automated test suite currently protects project, scene, runtime, or export behavior
+- GitHub Actions now pins VS2022 x64 and performs wrapper configure/build/test plus artifact existence checks; the new lane still needs a green CI verification run
+- `EngineContractTests` is registered with CTest and covers scene serialization, world behavior, Pong simulation, input priority/consumption, command access policy, Studio project artifact-state reporting, and extracted Studio build/workspace request services
+- a Python contract test verifies the MCP tool allowlist, capability contract, and project artifact-state visibility when Python is available
 - `/studio/scene/roundtrip-check` and smoke helpers are diagnostics, not an automated suite
-- the active localhost HTTP bridge serves embedded Studio tools
-- the WebSocket and `CommandRouter` path is not integrated into the running Studio host
-- no AI model client, MCP tool server, authorization boundary, or AI mutation protocol exists yet
+- the active localhost HTTP bridge serves embedded Studio tools and a permanently read-only `/studio/bridge/command` ingress
+- HTTP ingress is loopback-only, rejects cross-site origins, mismatched Host headers, oversized requests, and wildcard CORS, and requires a per-session cookie for normal Studio routes
+- `CommandRouter` classifies read versus mutating commands and denies mutation by default; WebSocket is still not integrated
+- read-only command query assembly now routes through a dedicated `StudioCommandQueryService` instead of keeping those JSON builders directly in `StudioHost`
+- build/export route orchestration now routes through `StudioBuildRequestService` instead of keeping that request handling directly in `StudioHost`
+- workspace layout save and workspace visibility toggles now route through `StudioWorkspaceRequestService`
+- the read-only `tools/ai_bridge/studio_mcp.py` MCP adapter exposes owner-backed Studio inspection tools and audit records
+- no AI model client, undo transaction layer, or write-capable AI mutation protocol exists yet
 
 Do not begin write-capable AI integration before the build, tests, and runtime-truth phases are stable.
 

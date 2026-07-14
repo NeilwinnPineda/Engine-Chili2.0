@@ -18,12 +18,18 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 include(cmake/compiler_warnings.cmake)
 include(cmake/sanitizers.cmake)
+include(CTest)
 
 # Target roles:
 # - EngineRuntime is the reusable engine DLL.
 # - Studio is the editor host executable.
+# - apps/pong owns its GameRuntime DLL and thin preview host.
 # - HotBuildTool is an external build helper, not an engine module.
 add_subdirectory(src/engine)
 add_subdirectory(apps/studio)
 add_subdirectory(apps/pong)
 add_subdirectory(tools/hotbuild)
+
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()

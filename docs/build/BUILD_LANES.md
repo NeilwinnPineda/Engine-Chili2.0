@@ -20,9 +20,10 @@ Goals:
 
 Current shape:
 
-- Windows + MSVC + Ninja
+- pinned Windows 2022 image + x64 MSVC + Ninja
 - non-interactive execution
 - reproducible logs/artifacts
+- wrapper configure/build/test sequence (`configure.cmd Release`, `build.cmd`, `test.cmd`)
 
 ### 2) Codex lane
 
@@ -34,7 +35,7 @@ Goals:
 
 Current shape:
 
-- wrapper-script and raw-CMake paths can both appear during transition
+- wrapper scripts are the source of truth (`configure.cmd`, `build.cmd`, `test.cmd`)
 - commands must run outside restricted CLI sandbox for this repo
 
 ### 3) Claude lane
@@ -62,6 +63,18 @@ Current shape:
 
 - wrapper scripts are the easiest user-facing path today
 - lower-level commands may still be used by advanced users/tools
+
+## Test Lane
+
+After a successful configure and build:
+
+```powershell
+.\test.cmd
+```
+
+The wrapper runs registered CTest tests from `build/`, emits failures to the
+terminal, and writes the complete result to `logs/ctest.log`. The first
+headless contract target intentionally avoids creating a DX11 window.
 
 ## Convergence Goal (Target Architecture)
 

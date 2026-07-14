@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ui_canvas_metrics.hpp"
 #include "native_ui_element.hpp"
 #include "../prototypes/presentation/frame.hpp"
 
@@ -32,6 +33,9 @@ struct NativeUiFrame
     bool hasWindowTitle = false;
     std::wstring windowTitle;
 
+    bool hasCanvasSettings = false;
+    NativeUiCanvasSettings canvasSettings{};
+
     bool overlayEnabled = true;
     bool hasClearColor = false;
     std::uint32_t clearColor = 0xFF000000u;
@@ -43,5 +47,7 @@ struct NativeUiFrame
     std::vector<NativeUiTextBlock> textBlocks;
     std::vector<NativeUiPanel> panels;
     std::vector<NativeUiShape> shapes;
+    std::vector<NativeUiForm> forms;
+    std::vector<NativeUiButton> nativeButtons;
     std::vector<NativeUiLabel> nativeLabels;
 };

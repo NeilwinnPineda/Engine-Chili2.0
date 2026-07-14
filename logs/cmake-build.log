@@ -1,4 +1,18 @@
-==== BUILD START Sun 05/10/2026 23:05:21.02 ==== 
+==== BUILD START Wed 05/20/2026  8:15:35.12 ==== 
 Target: Studio 
 [0/2] Re-checking globbed directories...
-ninja: no work to do.
+[1/6] Building CXX object apps/studio/CMakeFiles/studio_core_lib.dir/src/studio_app.cpp.obj
+[2/6] Building CXX object apps/studio/CMakeFiles/Studio.dir/src/main.cpp.obj
+[3/6] Building CXX object apps/studio/CMakeFiles/studio_core_lib.dir/src/studio_host.cpp.obj
+C:/Users/Neilwinn Pineda/Documents/Engine-Chili2.0/apps/studio/src/studio_host.cpp: In member function 'void StudioHost::UpdateFrameGizmoButtonLayout()':
+C:/Users/Neilwinn Pineda/Documents/Engine-Chili2.0/apps/studio/src/studio_host.cpp:1035:15: warning: unused variable 'windowWidth' [-Wunused-variable]
+ 1035 |     const int windowWidth = std::max(0, capabilities.window->GetWindowWidth());
+      |               ^~~~~~~~~~~
+C:/Users/Neilwinn Pineda/Documents/Engine-Chili2.0/apps/studio/src/studio_host.cpp:1036:15: warning: unused variable 'topInset' [-Wunused-variable]
+ 1036 |     const int topInset = m_layoutState.GetTopToolbarHeight();
+      |               ^~~~~~~~
+C:/Users/Neilwinn Pineda/Documents/Engine-Chili2.0/apps/studio/src/studio_host.cpp:1038:15: warning: unused variable 'rightInset' [-Wunused-variable]
+ 1038 |     const int rightInset = m_projectExplorerPanel.IsVisible() ? m_layoutState.GetRightInspectorWidth() : 0;
+      |               ^~~~~~~~~~
+[4/6] Linking CXX static library lib\libstudio_core_lib.a
+[5/6] Linking CXX executable bin\studio\engine_studio.exe

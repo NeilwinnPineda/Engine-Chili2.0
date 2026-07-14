@@ -56,6 +56,10 @@ apps/studio
     |   |-- engine_bridge.hpp
     |   `-- engine_bridge.cpp
     |-- commands/
+    |   |-- command_policy.hpp
+    |   |-- command_policy.cpp
+    |   |-- command_protocol.hpp
+    |   |-- command_protocol.cpp
     |   |-- command_router.hpp
     |   `-- command_router.cpp
     |-- transport/
@@ -88,13 +92,77 @@ apps/studio
 
 ### `CommandRouter`
 
-- stays in the structure as the future command ingress
-- is intentionally light in this milestone
+- provides the versioned command-envelope ingress
+- classifies read-only and mutating commands through `command_policy`
+- denies mutating commands unless the host explicitly enables them
+- is available over `/studio/bridge/command?message=<url-encoded-json>`
+
+### `StudioCommandQueryService`
+
+- owns the read-only workspace/project/entity/runtime query assembly used by the command router
+- keeps owner-backed inspection JSON out of `StudioHost`
+- is the current extraction seam between transport/routing and Studio-layer owners
+
+### `StudioBuildRequestService`
+
+- owns the Build App / Preview App route orchestration that was previously inlined in `StudioHost`
+- keeps build/export request handling, console narration, and recorded artifact-state updates in one Studio-layer seam
+- leaves process execution and packaging mechanics in `StudioBuildSystem`
+
+### `StudioWorkspaceRequestService`
+
+- owns workspace layout save and visibility-toggle route orchestration that was previously inlined in `StudioHost`
+- keeps project-session save behavior and workspace toggle messaging in one Studio-layer seam
+- leaves raw panel/UI implementation details with the existing panel owners
 
 ### `transport/`
 
-- preserves the future HTTP/WebSocket path
-- is not active in this milestone
+- HTTP is active on `127.0.0.1:37620` for first-party embedded tools and the command ingress
+- when HTTP starts successfully, Studio WebViews navigate to that loopback origin so their API calls remain same-origin; local-file navigation is the display-only fallback
+- HTTP validates Host/Origin/fetch-site metadata, limits request headers, and does not grant wildcard CORS
+- WebSocket remains inactive scaffolding
+
+### Automation / AI Boundary
+
+The current bridge is deliberately read-first. Protocol version `1` accepts:
+
+- `hello`
+- `ping`
+- `get_status`
+- `list_capabilities`
+- `get_workspace_status`
+- `get_project_status`
+- `list_entities`
+- `get_selected_entity`
+- `get_runtime_status`
+
+`exit` is classified as mutating and denied by default. The read-only MCP
+adapter under `tools/ai_bridge` exposes only the inspection subset and cannot
+forward arbitrary commands. There is no model-provider client or write-capable
+AI tool layer yet.
+
+When Studio publishes structured command descriptors, it now includes the
+bridge-facing MCP tool names for the read-only inspection subset so the
+external adapter can verify that its manifest still matches Studio's declared
+contract.
+
+`/studio/bridge/command` itself is permanently forced through read-only command
+handling even if Studio later enables mutation authority on other internal
+paths.
+
+Current MCP inspection tools include:
+
+- `studio_status`
+- `studio_capabilities`
+- `workspace_status`
+- `project_status`
+- `list_entities`
+- `selected_entity`
+- `runtime_status`
+
+Normal embedded routes require the random session cookie issued with the
+first-party Studio page. The external command endpoint is exempt from that
+cookie only because its command policy cannot authorize mutations.
 
 ## Runtime Behavior
 
@@ -229,7 +297,7 @@ Do not implement yet:
 
 - validate full control matrix across resize + panel visibility + play/edit transitions
 - keep moving any remaining direct raw-input checks toward named actions
-- add lightweight automated interaction smoke checks when test harness support is ready
+- expand the new CTest contract suite with runtime state-transition and project/export integration checks
 
 ## Default Scene Template
 
@@ -246,7 +314,7 @@ Template elements:
 
 Ownership notes:
 
-- template composition lives in `src/runtime/studio_default_scene_template.*`
+- template composition lives in `src/runtime/scene/studio_default_scene_template.*`
 - this template is reusable setup logic, not gameplay logic
 - sandbox/demo scenes remain separate and should stay explicitly labeled as sandbox/sample lanes
 
@@ -266,6 +334,8 @@ Export package contract:
 
 ```text
 User/<project_id>/Export/<project_id>.exe
+User/<project_id>/Export/<project_id>_runtime.dll
+User/<project_id>/Export/engine.dll
 User/<project_id>/Export/project.enginegame
 User/<project_id>/Export/config/*
 User/<project_id>/Export/scenes/*
@@ -273,6 +343,18 @@ User/<project_id>/Export/assets/*
 ```
 
 This prevents preview-vs-output drift caused by launching different binaries or missing project content.
+
+Studio now also tracks these artifact states separately while a project stays
+open:
+
+- configured runtime artifact path from the source project manifest
+- last built runtime artifact path
+- last packaged runtime artifact path
+- last packaged preview executable path
+
+When a packaged artifact is available, Studio's project runtime handoff prefers
+that packaged DLL so viewport play and exported preview keep converging on the
+same runtime truth.
 
 ## CoreTools
 
@@ -323,21 +405,28 @@ Current transitional Studio target:
 
 - `Studio`, output as `engine_studio.exe`
 
+Current transitional build backend:
+
+- `StudioBuildSystem` still shells direct `cmake -S/-B` and `cmake --build` when a project manifest does not override build commands
+- that is implementation reality today, not the desired long-term contract
+- repository policy still treats wrapper scripts as the canonical configure/build lane and expects Studio, wrappers, and CI to converge on one shared builder contract
+- when Studio build wiring changes, wrapper scripts remain the documented verification lane
+
 Sample runtime coupling note:
 
 - `HelloGameRuntime` is now an optional legacy in-process sample runtime.
 - Enable it only when needed with `-DENGINE_BUILD_STUDIO_SAMPLE_RUNTIMES=ON`.
 - Default Studio direction is `StudioPreviewRuntime` plus project/runtime contract flows, not permanent sample-runtime ownership inside Studio.
 
-Useful scripts:
+Canonical local verification lane:
 
 ```powershell
-Remove-Item -Recurse -Force build -ErrorAction SilentlyContinue
-cmake -S . -B build -G Ninja
-cmake --build build --target Studio
+.\configure.cmd
+.\build.cmd studio
 ```
 
-The CMake target is `Studio`; `engine_studio.exe` is the output name kept for continuity.
+The underlying CMake target is still `Studio`; `engine_studio.exe` is the
+output name kept for continuity.
 
 The build copies `WebView2Loader.dll` from a known local Visual Studio path when that loader is available there.
 If it is not copied automatically, place `WebView2Loader.dll` beside `engine_studio.exe`.

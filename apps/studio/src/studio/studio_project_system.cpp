@@ -1,6 +1,7 @@
 #include "studio/studio_project_system.hpp"
 
 #include <cctype>
+#include <cstdlib>
 #include <sstream>
 #include <utility>
 
@@ -8,6 +9,10 @@ namespace studio
 {
     namespace
     {
+        constexpr int kDefaultProjectDisplayWidth = 1280;
+        constexpr int kDefaultProjectDisplayHeight = 720;
+        constexpr float kDefaultProjectAspectRatio = 16.0f / 9.0f;
+
         studio_runtime::ProjectCodeEntryKind ParseProjectCodeEntryKind(const std::string& value)
         {
             if (value == "native_artifact")
@@ -24,6 +29,126 @@ namespace studio
             }
 
             return studio_runtime::ProjectCodeEntryKind::NativeInProcess;
+        }
+
+        bool TryParseInteger(const std::string& text, int& outValue)
+        {
+            if (text.empty())
+            {
+                return false;
+            }
+
+            char* end = nullptr;
+            const long value = std::strtol(text.c_str(), &end, 10);
+            if (end == text.c_str() || (end && *end != '\0'))
+            {
+                return false;
+            }
+
+            outValue = static_cast<int>(value);
+            return true;
+        }
+
+        bool TryParseFloat(const std::string& text, float& outValue)
+        {
+            if (text.empty())
+            {
+                return false;
+            }
+
+            char* end = nullptr;
+            const float value = std::strtof(text.c_str(), &end);
+            if (end == text.c_str() || (end && *end != '\0'))
+            {
+                return false;
+            }
+
+            outValue = value;
+            return true;
+        }
+
+        bool TryParseBool(const std::string& text, bool& outValue)
+        {
+            if (text == "true" || text == "1" || text == "yes")
+            {
+                outValue = true;
+                return true;
+            }
+
+            if (text == "false" || text == "0" || text == "no")
+            {
+                outValue = false;
+                return true;
+            }
+
+            return false;
+        }
+
+        float ParseAspectRatioText(const std::string& text)
+        {
+            if (text.empty())
+            {
+                return 0.0f;
+            }
+
+            const std::size_t colon = text.find(':');
+            if (colon != std::string::npos)
+            {
+                float left = 0.0f;
+                float right = 0.0f;
+                if (TryParseFloat(text.substr(0U, colon), left) &&
+                    TryParseFloat(text.substr(colon + 1U), right) &&
+                    right > 0.0001f)
+                {
+                    return left / right;
+                }
+            }
+
+            float value = 0.0f;
+            return TryParseFloat(text, value) ? value : 0.0f;
+        }
+
+        std::string ExtractManifestField(const std::string& manifestText, const std::string& fieldName);
+
+        studio_runtime::ProjectDisplaySettings ParseProjectDisplaySettings(const std::string& manifestText)
+        {
+            studio_runtime::ProjectDisplaySettings settings;
+
+            int width = 0;
+            if (TryParseInteger(ExtractManifestField(manifestText, "display_width"), width) && width > 0)
+            {
+                settings.targetWidth = width;
+            }
+
+            int height = 0;
+            if (TryParseInteger(ExtractManifestField(manifestText, "display_height"), height) && height > 0)
+            {
+                settings.targetHeight = height;
+            }
+
+            bool lockAspect = false;
+            if (TryParseBool(ExtractManifestField(manifestText, "display_lock_aspect"), lockAspect))
+            {
+                settings.lockAspectRatio = lockAspect;
+            }
+
+            const float parsedAspect = ParseAspectRatioText(ExtractManifestField(manifestText, "display_aspect_ratio"));
+            if (parsedAspect > 0.0001f)
+            {
+                settings.aspectRatio = parsedAspect;
+            }
+            else if (settings.targetWidth > 0 && settings.targetHeight > 0)
+            {
+                settings.aspectRatio = static_cast<float>(settings.targetWidth) / static_cast<float>(settings.targetHeight);
+            }
+            else
+            {
+                settings.targetWidth = kDefaultProjectDisplayWidth;
+                settings.targetHeight = kDefaultProjectDisplayHeight;
+                settings.aspectRatio = kDefaultProjectAspectRatio;
+            }
+
+            return settings;
         }
 
         std::string JoinVirtualPath(const std::string& left, const std::string& right)
@@ -48,14 +173,19 @@ namespace studio
                 << "name = " << request.projectName << "\n"
                 << "id = " << projectId << "\n"
                 << "template = " << request.templateName << "\n"
-                << "runtime_kind = native_in_process\n"
-                << "runtime = StudioPreviewRuntime\n"
+                << "runtime_kind = native_artifact\n"
+                << "runtime_artifact = ../Build/bin/" << projectId << "_runtime.dll\n"
                 << "build_configure = cmake -S . -B ../Build -G Ninja\n"
                 << "build_command = cmake --build ../Build\n"
-                << "build_output = ../Build/bin/" << projectId << ".exe\n"
+                << "build_output = ../Build/bin/" << projectId << "_runtime.dll\n"
+                << "preview_output = ../Build/bin/" << projectId << ".exe\n"
                 << "default_scene = scenes/main.scene\n"
                 << "source_header = src/" << projectId << ".hpp\n"
                 << "source_entry = src/" << projectId << ".cpp\n"
+                << "display_width = " << kDefaultProjectDisplayWidth << "\n"
+                << "display_height = " << kDefaultProjectDisplayHeight << "\n"
+                << "display_aspect_ratio = 16:9\n"
+                << "display_lock_aspect = true\n"
                 << "target_fps = 60\n";
             return manifest.str();
         }
@@ -71,10 +201,15 @@ namespace studio
                 << "  \"name\": \"" << request.projectName << "\",\n"
                 << "  \"id\": \"" << projectId << "\",\n"
                 << "  \"template\": \"" << request.templateName << "\",\n"
-                << "  \"runtime\": \"StudioPreviewRuntime\",\n"
+                << "  \"runtimeKind\": \"native_artifact\",\n"
+                << "  \"runtimeArtifact\": \"../Build/bin/" << projectId << "_runtime.dll\",\n"
                 << "  \"defaultScene\": \"scenes/main.scene\",\n"
                 << "  \"sourceHeader\": \"src/" << projectId << ".hpp\",\n"
                 << "  \"sourceEntry\": \"src/" << projectId << ".cpp\",\n"
+                << "  \"displayWidth\": " << kDefaultProjectDisplayWidth << ",\n"
+                << "  \"displayHeight\": " << kDefaultProjectDisplayHeight << ",\n"
+                << "  \"displayAspectRatio\": \"16:9\",\n"
+                << "  \"displayLockAspect\": true,\n"
                 << "  \"targetFps\": 60,\n"
                 << "  \"assetProxyFolder\": \"" << assetProxyFolder << "\"\n"
                 << "}\n";
@@ -228,15 +363,22 @@ namespace studio
 
         result.success = true;
         result.message = "Created project '" + request.projectName + "' at " + result.logicalProjectPath + ".";
+        const studio_runtime::ProjectDisplaySettings displaySettings = ParseProjectDisplaySettings(BuildManifest(request, result.projectId));
         m_currentProject.isOpen = true;
         m_currentProject.projectId = result.projectId;
         m_currentProject.projectName = request.projectName;
         m_currentProject.logicalProjectPath = result.logicalProjectPath;
         m_currentProject.projectRootPath = projectPath;
-        m_currentProject.previewRuntimeName = "StudioPreviewRuntime";
-        m_currentProject.codeEntryKind = studio_runtime::ProjectCodeEntryKind::NativeInProcess;
+        m_currentProject.previewRuntimeName.clear();
+        m_currentProject.codeEntryKind = studio_runtime::ProjectCodeEntryKind::NativeArtifact;
+        m_currentProject.exportedArtifactPath = "../Build/bin/" + result.projectId + "_runtime.dll";
+        m_currentProject.builtRuntimeArtifactPath.clear();
+        m_currentProject.packagedRuntimeArtifactPath.clear();
+        m_currentProject.packagedExecutablePath.clear();
+        m_currentProject.logicalExportPath.clear();
         m_currentProject.defaultScenePath = "scenes/main.scene";
         m_currentProject.sourceEntryPath = "src/" + result.projectId + ".cpp";
+        m_currentProject.displaySettings = displaySettings;
         m_currentProject.assetProxyFolder = defaultProxyFolder;
         m_currentProject.manifestText = BuildManifest(request, result.projectId);
         return result;
@@ -282,17 +424,19 @@ namespace studio
         {
             result.projectName = result.projectId;
         }
+        result.codeEntryKind = ParseProjectCodeEntryKind(ExtractManifestField(result.manifestText, "runtime_kind"));
         result.previewRuntimeName = ExtractManifestField(result.manifestText, "runtime");
-        if (result.previewRuntimeName.empty())
+        if (result.previewRuntimeName.empty() &&
+            result.codeEntryKind == studio_runtime::ProjectCodeEntryKind::NativeInProcess)
         {
             result.previewRuntimeName = "StudioPreviewRuntime";
         }
-        result.codeEntryKind = ParseProjectCodeEntryKind(ExtractManifestField(result.manifestText, "runtime_kind"));
         result.exportedArtifactPath = ExtractManifestField(result.manifestText, "runtime_artifact");
         result.scriptEntryPath = ExtractManifestField(result.manifestText, "script_entry");
         result.adapterExecutablePath = ExtractManifestField(result.manifestText, "adapter_entry");
         result.defaultScenePath = ExtractManifestField(result.manifestText, "default_scene");
         result.sourceEntryPath = ExtractManifestField(result.manifestText, "source_entry");
+        result.displaySettings = ParseProjectDisplaySettings(result.manifestText);
         result.assetProxyFolder = "../ChiliProxyLibrary";
         std::string projectJsonText;
         if (m_files.Exists(projectJsonPath) && m_files.ReadText(projectJsonPath, projectJsonText, error))
@@ -314,10 +458,15 @@ namespace studio
         m_currentProject.previewRuntimeName = result.previewRuntimeName;
         m_currentProject.codeEntryKind = result.codeEntryKind;
         m_currentProject.exportedArtifactPath = result.exportedArtifactPath;
+        m_currentProject.builtRuntimeArtifactPath.clear();
+        m_currentProject.packagedRuntimeArtifactPath.clear();
+        m_currentProject.packagedExecutablePath.clear();
+        m_currentProject.logicalExportPath.clear();
         m_currentProject.scriptEntryPath = result.scriptEntryPath;
         m_currentProject.adapterExecutablePath = result.adapterExecutablePath;
         m_currentProject.defaultScenePath = result.defaultScenePath;
         m_currentProject.sourceEntryPath = result.sourceEntryPath;
+        m_currentProject.displaySettings = result.displaySettings;
         m_currentProject.assetProxyFolder = result.assetProxyFolder;
         m_currentProject.manifestText = result.manifestText;
         return result;
@@ -372,6 +521,23 @@ namespace studio
     std::string StudioProjectSystem::GetCurrentProjectRoot() const
     {
         return m_currentProject.isOpen ? GetProjectSourcePath(m_currentProject.projectId) : std::string();
+    }
+
+    void StudioProjectSystem::RecordBuildOutputs(
+        const std::string& builtRuntimeArtifactPath,
+        const std::string& packagedRuntimeArtifactPath,
+        const std::string& packagedExecutablePath,
+        const std::string& logicalExportPath)
+    {
+        if (!m_currentProject.isOpen)
+        {
+            return;
+        }
+
+        m_currentProject.builtRuntimeArtifactPath = builtRuntimeArtifactPath;
+        m_currentProject.packagedRuntimeArtifactPath = packagedRuntimeArtifactPath;
+        m_currentProject.packagedExecutablePath = packagedExecutablePath;
+        m_currentProject.logicalExportPath = logicalExportPath;
     }
 
     std::string StudioProjectSystem::MakeProjectId(const std::string& projectName)

@@ -1,6 +1,6 @@
 #include "studio/studio_build_system.hpp"
 
-#include "runtime/runtime_game_api.hpp"
+#include "runtime/api/runtime_game_api.hpp"
 #include "studio/studio_project_system.hpp"
 
 #ifndef WIN32_LEAN_AND_MEAN
@@ -39,6 +39,7 @@ namespace studio
             std::string configureCommand;
             std::string buildCommand;
             std::string runtimeOutput;
+            std::string previewOutput;
             std::string scriptEntry;
             std::string adapterEntry;
         };
@@ -78,6 +79,35 @@ namespace studio
             }
 
             return std::string();
+        }
+
+        std::string SetManifestField(
+            const std::string& manifestText,
+            const std::string& fieldName,
+            const std::string& value)
+        {
+            const std::string prefix = fieldName + " = ";
+            std::stringstream input(manifestText);
+            std::ostringstream output;
+            std::string line;
+            bool replaced = false;
+            while (std::getline(input, line))
+            {
+                if (line.find(prefix) == 0U)
+                {
+                    output << prefix << value << '\n';
+                    replaced = true;
+                }
+                else
+                {
+                    output << line << '\n';
+                }
+            }
+            if (!replaced)
+            {
+                output << prefix << value << '\n';
+            }
+            return output.str();
         }
 
         studio_runtime::ProjectCodeEntryKind ParseProjectCodeEntryKind(const std::string& value)
@@ -171,6 +201,7 @@ namespace studio
             contract.configureCommand = ExtractManifestField(manifestText, "build_configure");
             contract.buildCommand = ExtractManifestField(manifestText, "build_command");
             contract.runtimeOutput = ExtractManifestField(manifestText, "build_output");
+            contract.previewOutput = ExtractManifestField(manifestText, "preview_output");
             contract.scriptEntry = ExtractManifestField(manifestText, "script_entry");
             contract.adapterEntry = ExtractManifestField(manifestText, "adapter_entry");
 
@@ -207,6 +238,12 @@ namespace studio
                     contract.runtimeOutput = "../Build/bin/" + projectId + ".exe";
                     break;
                 }
+            }
+
+            if (contract.codeEntryKind == studio_runtime::ProjectCodeEntryKind::NativeArtifact &&
+                contract.previewOutput.empty())
+            {
+                contract.previewOutput = "../Build/bin/" + projectId + ".exe";
             }
 
             return contract;
@@ -320,7 +357,10 @@ namespace studio
         }
 
         result.runtimeOutputPath = ResolveProjectPath(m_files, projectPath, contract.runtimeOutput);
-        result.executablePath = result.runtimeOutputPath;
+        result.builtRuntimeOutputPath = result.runtimeOutputPath;
+        result.executablePath = contract.codeEntryKind == studio_runtime::ProjectCodeEntryKind::NativeArtifact
+            ? ResolveProjectPath(m_files, projectPath, contract.previewOutput)
+            : result.runtimeOutputPath;
 
         const bool requiresRuntimeOutput =
             contract.codeEntryKind != studio_runtime::ProjectCodeEntryKind::LuaScript;
@@ -328,6 +368,14 @@ namespace studio
             (result.runtimeOutputPath.empty() || !std::filesystem::exists(std::filesystem::path(result.runtimeOutputPath))))
         {
             result.error = "Configured runtime output was not produced: " + contract.runtimeOutput;
+            return result;
+        }
+
+        if (contract.codeEntryKind == studio_runtime::ProjectCodeEntryKind::NativeArtifact &&
+            request.runAfterBuild &&
+            (result.executablePath.empty() || !std::filesystem::exists(result.executablePath)))
+        {
+            result.error = "Configured preview host was not produced: " + contract.previewOutput;
             return result;
         }
 
@@ -349,6 +397,20 @@ namespace studio
 
             const std::filesystem::path exportRoot(physicalExportPath);
             const std::filesystem::path projectRoot(physicalProjectPath);
+
+            std::error_code resetError;
+            std::filesystem::remove_all(exportRoot, resetError);
+            if (resetError)
+            {
+                result.error = "Failed to reset export package: " + resetError.message();
+                return result;
+            }
+            std::filesystem::create_directories(exportRoot, resetError);
+            if (resetError)
+            {
+                result.error = "Failed to create clean export package: " + resetError.message();
+                return result;
+            }
 
             const auto copyProjectEntry =
                 [&](const char* relativePath, std::string& outError) -> bool
@@ -461,7 +523,72 @@ namespace studio
                 }
 
                 result.runtimeOutputPath = artifactDestination.string();
-                result.executablePath.clear();
+                result.packagedRuntimeOutputPath = result.runtimeOutputPath;
+
+                const std::string previewSourcePath = ResolveProjectPath(
+                    m_files,
+                    projectPath,
+                    contract.previewOutput);
+                const std::filesystem::path previewDestination = exportRoot / (request.projectId + ".exe");
+                if (previewSourcePath.empty() || !std::filesystem::exists(previewSourcePath))
+                {
+                    result.error = "Configured preview host was not produced: " + contract.previewOutput;
+                    return result;
+                }
+
+                std::filesystem::copy_file(
+                    std::filesystem::path(previewSourcePath),
+                    previewDestination,
+                    std::filesystem::copy_options::overwrite_existing,
+                    copyError);
+                if (copyError)
+                {
+                    result.error = "Failed to export preview host: " + copyError.message();
+                    return result;
+                }
+
+                const std::filesystem::path engineSource =
+                    std::filesystem::path(previewSourcePath).parent_path() / "engine.dll";
+                if (!std::filesystem::exists(engineSource))
+                {
+                    result.error = "Preview package is missing engine.dll next to its host executable.";
+                    return result;
+                }
+
+                std::filesystem::copy_file(
+                    engineSource,
+                    exportRoot / "engine.dll",
+                    std::filesystem::copy_options::overwrite_existing,
+                    copyError);
+                if (copyError)
+                {
+                    result.error = "Failed to export engine runtime dependency: " + copyError.message();
+                    return result;
+                }
+
+                result.executablePath = previewDestination.string();
+                result.packagedExecutablePath = result.executablePath;
+
+                std::string packagedManifest = SetManifestField(
+                    manifestText,
+                    "runtime_artifact",
+                    artifactDestination.filename().string());
+                packagedManifest = SetManifestField(
+                    packagedManifest,
+                    "build_output",
+                    artifactDestination.filename().string());
+                packagedManifest = SetManifestField(
+                    packagedManifest,
+                    "preview_output",
+                    previewDestination.filename().string());
+                if (!m_files.WriteText(
+                        JoinVirtualPath(exportPath, "project.enginegame"),
+                        packagedManifest,
+                        error))
+                {
+                    result.error = "Failed to write packaged project manifest: " + error;
+                    return result;
+                }
             }
             else
             {
@@ -476,12 +603,6 @@ namespace studio
             if (contract.codeEntryKind == studio_runtime::ProjectCodeEntryKind::LuaScript)
             {
                 result.error = "Lua script projects do not have a direct launchable runtime output yet.";
-                return result;
-            }
-
-            if (contract.codeEntryKind == studio_runtime::ProjectCodeEntryKind::NativeArtifact)
-            {
-                result.error = "Native artifact projects do not have a launch host wired up yet.";
                 return result;
             }
 

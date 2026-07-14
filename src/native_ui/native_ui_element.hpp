@@ -41,6 +41,45 @@ struct NativeUiPanel
     std::vector<NativeUiStatusRow> rows;
 };
 
+struct NativeUiButton
+{
+    std::string name;
+    std::wstring text;
+    bool visible = true;
+    bool enabled = true;
+    NativeUiAnchor anchor = NativeUiAnchor::TopLeft;
+    int x = 0;
+    int y = 0;
+    int width = 120;
+    int height = 36;
+    int offsetX = 0;
+    int offsetY = 0;
+    bool useAnchor = false;
+};
+
+struct NativeUiForm
+{
+    std::string name;
+    std::wstring title;
+    std::wstring body;
+    bool visible = true;
+    NativeUiAnchor anchor = NativeUiAnchor::TopLeft;
+    int x = 0;
+    int y = 0;
+    int width = 320;
+    int height = 200;
+    int offsetX = 0;
+    int offsetY = 0;
+    bool useAnchor = false;
+    int headerHeight = 36;
+    int padding = 14;
+    std::uint32_t titleTextColor = 0xFFF7F0E8u;
+    std::uint32_t bodyTextColor = 0xFFE6DDD2u;
+    std::uint32_t backgroundColor = 0xD9181412u;
+    std::uint32_t headerColor = 0xEE2B221Eu;
+    std::uint32_t borderColor = 0xFF8A6D57u;
+};
+
 enum class NativeUiShapeKind : unsigned char
 {
     Rect,

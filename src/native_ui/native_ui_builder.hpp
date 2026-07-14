@@ -49,9 +49,61 @@ public:
         std::size_t m_panelIndex = 0U;
     };
 
+    class ButtonBuilder
+    {
+    public:
+        ButtonBuilder(NativeUiBuilder& owner, std::size_t buttonIndex);
+
+        ButtonBuilder& Visible(bool visible);
+        ButtonBuilder& Enabled(bool enabled);
+        ButtonBuilder& Bounds(int x, int y, int width, int height);
+        ButtonBuilder& Anchor(NativeUiAnchor anchor, int offsetX, int offsetY, int width, int height);
+
+    private:
+        NativeUiBuilder& m_owner;
+        std::size_t m_buttonIndex = 0U;
+    };
+
+    class FormBuilder
+    {
+    public:
+        FormBuilder(NativeUiBuilder& owner, std::size_t formIndex);
+
+        FormBuilder& Visible(bool visible);
+        FormBuilder& Bounds(int x, int y, int width, int height);
+        FormBuilder& Anchor(NativeUiAnchor anchor, int offsetX, int offsetY, int width, int height);
+        FormBuilder& Body(const std::wstring& body);
+        FormBuilder& Body(const wchar_t* body);
+        FormBuilder& HeaderHeight(int height);
+        FormBuilder& Padding(int padding);
+        FormBuilder& Colors(
+            std::uint32_t titleTextColor,
+            std::uint32_t bodyTextColor,
+            std::uint32_t backgroundColor,
+            std::uint32_t headerColor,
+            std::uint32_t borderColor);
+        FormBuilder& Colors(
+            const ColorPrototype& titleTextColor,
+            const ColorPrototype& bodyTextColor,
+            const ColorPrototype& backgroundColor,
+            const ColorPrototype& headerColor,
+            const ColorPrototype& borderColor);
+
+    private:
+        NativeUiBuilder& m_owner;
+        std::size_t m_formIndex = 0U;
+    };
+
 public:
     NativeUiBuilder& WindowTitle(const std::wstring& title);
     NativeUiBuilder& WindowTitle(const wchar_t* title);
+    NativeUiBuilder& Canvas(int designWidth, int designHeight, bool lockAspectRatio = true);
+    NativeUiBuilder& Canvas(
+        int designWidth,
+        int designHeight,
+        float aspectRatio,
+        bool lockAspectRatio);
+    NativeUiBuilder& Canvas(const NativeUiCanvasSettings& settings);
     NativeUiBuilder& OverlayEnabled(bool enabled);
     NativeUiBuilder& ClearColor(std::uint32_t color);
     NativeUiBuilder& ClearColor(const ColorPrototype& color);
@@ -74,6 +126,10 @@ public:
 
     OverlayBuilder Overlay();
     PanelBuilder Panel(const std::string& title);
+    ButtonBuilder Button(const std::string& name, const std::wstring& text);
+    ButtonBuilder Button(const std::string& name, const wchar_t* text);
+    FormBuilder Form(const std::string& name, const std::wstring& title);
+    FormBuilder Form(const std::string& name, const wchar_t* title);
 
     NativeUiFrame Build() const;
 

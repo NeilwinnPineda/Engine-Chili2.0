@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "PowerShell(& cmd.exe /c \"`\"c:\\\\Users\\\\Neilwinn Pineda\\\\Documents\\\\Engine-Chili2.0\\\\configure.cmd`\"\" 2>&1)",
-      "PowerShell(& cmd.exe /c \"`\"c:\\\\Users\\\\Neilwinn Pineda\\\\Documents\\\\Engine-Chili2.0\\\\build.cmd`\" studio\" 2>&1)"
+      "PowerShell(& cmd.exe /c \"`\"c:\\\\Users\\\\Neilwinn Pineda\\\\Documents\\\\Engine-Chili2.0\\\\build.cmd`\" studio\" 2>&1)",
+      "PowerShell(& cmd.exe /c \"`\"C:\\\\Users\\\\Neilwinn Pineda\\\\Documents\\\\Engine-Chili2.0\\\\build.cmd`\" studio\" 2>&1)",
+      "PowerShell(Start-Process -FilePath \"c:\\\\Users\\\\Neilwinn Pineda\\\\Documents\\\\Engine-Chili2.0\\\\build\\\\bin\\\\studio\\\\engine_studio.exe\" -WorkingDirectory \"c:\\\\Users\\\\Neilwinn Pineda\\\\Documents\\\\Engine-Chili2.0\\\\build\\\\bin\\\\studio\")",
+      "PowerShell(netstat -ano)",
+      "Bash(start \"\" \"c:/Users/Neilwinn Pineda/Documents/Engine-Chili2.0/build/bin/studio/engine_studio.exe\")",
+      "PowerShell(New-Item -ItemType Directory -Path \"c:\\\\Users\\\\Neilwinn Pineda\\\\Documents\\\\Engine-Chili2.0\\\\apps\\\\pong\\\\src\" -Force)"
     ]
   }
 }

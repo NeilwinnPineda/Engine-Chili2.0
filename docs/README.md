@@ -23,11 +23,12 @@ This is the intentionally small documentation surface for the repo.
 
 ## Project Snapshot
 
-- the active revival order is: stabilize build truth -> add automated tests -> unify preview/export runtime truth -> extract a secure command service -> add the AI bridge
-- no CTest/unit/integration suite is currently registered; existing validation is mainly manual, diagnostic, or trial-app driven
-- Studio's localhost HTTP bridge is an active embedded-UI transport, not an AI bridge
-- `CommandRouter` and WebSocket code are incomplete scaffolding, and no AI/LLM/MCP application bridge is currently implemented
-- artifact-based Studio preview is still transitional; project runtime DLL loading must replace the in-process preview shortcut
+- the active revival order is: stabilize build truth -> add automated tests -> unify preview/export runtime truth -> extract a secure command service -> harden the AI bridge contract
+- a first CTest contract suite now exists for scene/world behavior, Pong simulation, runtime loading failure handling, input priority/consumption, Studio command permissions, Studio project artifact-state reporting, and extracted Studio build/workspace request services
+- Studio's localhost HTTP bridge is active both for embedded first-party UI and for a constrained external command ingress
+- `CommandRouter` is live for versioned command envelopes; WebSocket remains inactive scaffolding
+- `tools/ai_bridge/studio_mcp.py` is a read-only MCP adapter with a fixed tool manifest, capability validation, audit logging, and contract coverage for project/runtime artifact-state inspection
+- artifact-based Studio preview is now aligned around project runtime DLL loading plus exported preview artifacts, though wrapper-lane verification is still pending
 
 - the build/runtime direction is moving to a thin launcher executable plus DLL-loaded engine and app/tool modules
 - `EngineRuntime` is the reusable native runtime DLL target
@@ -86,10 +87,12 @@ Current build-lane direction:
 - see [Build Lanes](./build/BUILD_LANES.md) for supported lanes and the convergence target
 - eventual goal is a unified builder contract that all lanes call into, rather than lane-specific policy copies
 
+Preferred wrapper lane:
+
 ```powershell
-Remove-Item -Recurse -Force build -ErrorAction SilentlyContinue
-cmake -S . -B build -G Ninja
-cmake --build build
+.\configure.cmd
+.\build.cmd
+.\test.cmd
 ```
 
 Current output layout:
@@ -101,21 +104,19 @@ build/bin/apps/pong/
 build/bin/tools/hotbuild/
 ```
 
-Sanitizer build:
-
-```powershell
-Remove-Item -Recurse -Force build\sanitize -ErrorAction SilentlyContinue
-cmake -S . -B build\sanitize -G Ninja -DENABLE_SANITIZERS=ON
-cmake --build build\sanitize
-```
+Raw CMake remains an implementation detail underneath the wrapper lane, not the
+documented primary workflow.
 
 ## Studio Viewport Controls
 
 | Action | Input |
 |--------|-------|
-| Orbit | MMB drag |
-| Pan | Shift + MMB drag |
+| Orbit | Alt + LMB drag |
+| Pan | MMB drag |
 | Zoom | Scroll wheel |
+| Fly mode | Hold RMB |
+| Fly move | W/S/A/D/E/Q |
+| Fly boost | Shift |
 | Select entity | LMB click |
 | Multi-select | Shift + LMB click |
 | Focus selection | F |

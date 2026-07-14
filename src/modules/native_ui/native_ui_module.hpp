@@ -33,6 +33,7 @@ public:
     bool SetButtonBounds(ButtonHandle handle, const NativeControlRect& rect);
     bool SetButtonText(ButtonHandle handle, const std::wstring& text);
     bool SetButtonVisible(ButtonHandle handle, bool visible);
+    bool SetButtonEnabled(ButtonHandle handle, bool enabled);
     bool ConsumeButtonPressed(ButtonHandle handle);
     bool IsButtonOpen(ButtonHandle handle) const;
     LabelHandle CreateLabel(const NativeLabelDesc& desc);

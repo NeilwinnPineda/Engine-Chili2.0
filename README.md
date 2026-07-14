@@ -12,10 +12,13 @@ Current targets:
 Current state:
 
 - the active revival plan is documented in `docs/engine/REVIVAL_PLAN.md`
-- automated testing is not yet established: CI currently checks wrapper builds and artifacts, while runtime validation remains mostly manual
-- Studio's active localhost HTTP bridge serves its embedded HTML tools; it is not an AI bridge
-- generic WebSocket/command transport remains incomplete, and no AI/LLM/MCP application bridge is implemented yet
-- the next structural order is build stabilization, automated tests, preview/export runtime parity, a secure shared command service, then AI tooling
+- the current engine/studio/runtime/API seam map is documented in `docs/engine/API_MAP.md`
+- a first CTest contract suite now covers scene/world behavior, Pong simulation, runtime loading failure handling, input priority/consumption, Studio command permissions, Studio project artifact-state reporting, and extracted Studio build/workspace request services
+- Studio's localhost bridge exposes validated read-only inspection commands over a versioned envelope
+- `tools/ai_bridge/studio_mcp.py` provides a dependency-free, read-only MCP adapter with manifest/capability validation, project artifact-state inspection coverage, and audit logging; no model client is embedded in the application
+- project templates now generate a runtime DLL plus thin preview host, and Studio can load that runtime artifact into its viewport
+- `StudioCommandQueryService`, `StudioBuildRequestService`, and `StudioWorkspaceRequestService` now hold the first extracted Studio-side command/build/workspace route seams instead of leaving that orchestration entirely inside `StudioHost`
+- generic WebSocket transport and write-capable AI tools remain intentionally disabled
 
 - the old sandbox executable is no longer part of the top-level build; rapid Pong testing now moves through `apps/pong`'s `PongPreview`
 - the front-facing app architecture is being iterated through real game trials, currently using `apps/pong`, future game runtime DLLs, and `apps/_template` to pressure-test what app authors and players see and do
@@ -76,6 +79,7 @@ Preferred local commands:
 .\build.cmd studio
 .\build.cmd pong
 .\build.cmd engine
+.\test.cmd
 ```
 
 Target aliases:
@@ -89,6 +93,7 @@ Agent note:
 
 - In Codex or similar sandboxed agents, run `configure.cmd`, `build.cmd`, direct `cmake`, and Ninja commands only with escalated execution.
 - The wrapper commands write logs to `logs/cmake-configure.log` and `logs/cmake-build.log`.
+- The test wrapper writes failures and results to `logs/ctest.log`.
 
 Build lanes note:
 
@@ -108,12 +113,15 @@ Build direction:
 - app/tool DLLs should own project-specific runtime/editor behavior without forcing the launcher or engine core to relink for every iteration
 - future build work should prefer DLL-safe boundaries, explicit exported entry points, and reload-friendly ownership over direct executable coupling
 
-Raw CMake equivalent:
+Underlying CMake equivalent for the wrapper lane:
 
 ```powershell
 cmake -S . -B build -G Ninja
 cmake --build build
 ```
+
+Use the wrapper scripts above as the canonical operator and CI entry points.
+Do not treat the raw CMake pair as a separate primary workflow.
 
 Current output layout:
 
@@ -128,28 +136,37 @@ build/bin/tools/hotbuild/HotBuildTool.exe
 Codex note:
 
 - In this repo, build commands must be run outside the normal CLI sandbox.
-- Codex may need to run `cmake -S . -B build -G Ninja` and `cmake --build build` outside the sandbox because CMake try-compile/build subprocesses can stall or fail under sandboxed execution.
+- Codex may need to run the wrapper lane outside the sandbox because CMake try-compile/build subprocesses can stall or fail under sandboxed execution.
 - As the DLL build model lands, documentation and code changes should keep the launcher/engine/app-DLL split explicit instead of folding new behavior into one executable target.
 
 GitHub build note:
 
-- the GitHub Actions Windows build should use the Visual Studio/MSVC toolchain with Ninja
+- the GitHub Actions Windows build is pinned to the VS2022 x64 image and uses MSVC with Ninja
 - this repo is heavily Win32/DX11/WebView2-oriented, so MSVC is the intended CI compiler lane rather than MSYS2/MinGW
 
-Sanitizer build:
+Sanitizer note:
 
-```powershell
-Remove-Item -Recurse -Force build\sanitize -ErrorAction SilentlyContinue
-cmake -S . -B build\sanitize -G Ninja -DENABLE_SANITIZERS=ON
-cmake --build build\sanitize
-```
+- no sanitizer-specific wrapper lane is documented as a stable repo contract yet
+- if sanitizer support is revived, document the wrapper-backed flow before advertising it as supported
 
 Studio status:
 
 - `Studio` outputs `engine_studio.exe`, keeps the existing native engine window, and hosts an embedded WebView2 sidebar
 - The first embedded tool surface lives under `apps/studio/coretools`
 - The current milestone is Windows-only and focused on a fixed left-docked CoreTools surface
-- Future HTTP and WebSocket transport code remains under `apps/studio/src/transport`, but it is not the active runtime path for this milestone
+- the localhost HTTP transport is active for embedded tools and the read-only command ingress; WebSocket remains future scaffolding
+- embedded panels use a per-session `HttpOnly`, `SameSite=Strict` cookie; cross-site requests cannot call normal Studio routes
+- the external AI ingress remains read-only and is constrained by a fixed command allowlist
+
+AI bridge:
+
+```powershell
+python tools/ai_bridge/studio_mcp.py
+```
+
+See `tools/ai_bridge/README.md` for MCP client configuration and the current
+read-only tool list. Tool calls are audited under
+`User/studio/logs/ai_bridge_audit.jsonl`.
 
 Sandbox status:
 

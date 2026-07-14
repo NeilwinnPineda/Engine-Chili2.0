@@ -9,30 +9,36 @@ add_library(studio_core_lib STATIC
     src/studio_host.cpp
     src/bridge/engine_bridge.cpp
     src/commands/command_router.cpp
-    src/runtime/runtime_commands.cpp
-    src/runtime/scene_runtime.cpp
-    src/runtime/scene_serializer.cpp
-    src/runtime/runtime_queries.cpp
-    src/runtime/runtime_world.cpp
-    src/runtime/cursor_space_calibration.cpp
-    src/runtime/proxy_prototype_resolver.cpp
-    src/runtime/studio_default_scene_template.cpp
-    src/runtime/default_scene_json.cpp
-    src/runtime/vector_icon.cpp
-    src/runtime/studio_camera.cpp
-    src/runtime/studio_connector.cpp
-    src/runtime/studio_interaction_controller.cpp
-    src/runtime/studio_picking_service.cpp
-    src/runtime/studio_preview_runtime.cpp
-    src/runtime/runtime_registry.cpp
-    src/runtime/studio_runtime_host.cpp
+    src/commands/command_policy.cpp
+    src/commands/command_protocol.cpp
+    src/runtime/query/runtime_commands.cpp
+    src/runtime/scene/scene_runtime.cpp
+    src/runtime/scene/scene_serializer.cpp
+    src/runtime/query/runtime_queries.cpp
+    src/runtime/scene/runtime_world.cpp
+    src/runtime/interaction/cursor_space_calibration.cpp
+    src/runtime/scene/proxy_prototype_resolver.cpp
+    src/runtime/scene/studio_default_scene_template.cpp
+    src/runtime/scene/default_scene_json.cpp
+    src/runtime/presentation/vector_icon.cpp
+    src/runtime/host/studio_connector.cpp
+    src/runtime/interaction/studio_camera.cpp
+    src/runtime/interaction/studio_interaction_controller.cpp
+    src/runtime/interaction/studio_picking_service.cpp
+    src/runtime/api/studio_preview_runtime.cpp
+    src/runtime/api/game_runtime_library.cpp
+    src/runtime/api/runtime_registry.cpp
+    src/runtime/host/studio_runtime_host.cpp
     src/transport/http_server.cpp
     src/studio/file_management_dialog.cpp
     src/studio/new_project_dialog.cpp
     src/studio/project_explorer_panel.cpp
     src/studio/studio_console_panel.cpp
+    src/studio/studio_command_query_service.cpp
     src/studio/studio_layout_state.cpp
     src/studio/studio_file_actions.cpp
+    src/studio/studio_build_request_service.cpp
+    src/studio/studio_workspace_request_service.cpp
     src/studio/studio_build_system.cpp
     src/studio/file_proxy.cpp
     src/studio/proxy_library.cpp
@@ -42,52 +48,50 @@ add_library(studio_core_lib STATIC
     src/studio_host.hpp
     src/bridge/engine_bridge.hpp
     src/commands/command_router.hpp
-    src/runtime/runtime_commands.hpp
-    src/runtime/scene_runtime.hpp
-    src/runtime/scene_prototype.hpp
-    src/runtime/scene_serializer.hpp
-    src/runtime/runtime_queries.hpp
-    src/runtime/runtime_world.hpp
-    src/runtime/cursor_space_calibration.h
-    src/runtime/proxy_prototype_resolver.hpp
-    src/runtime/studio_default_scene_template.hpp
-    src/runtime/default_scene_json.hpp
-    src/runtime/vector_icon.hpp
-    src/runtime/studio_camera.hpp
-    src/runtime/studio_connector.hpp
-    src/runtime/studio_interaction_controller.hpp
-    src/runtime/studio_picking_service.hpp
-    src/runtime/studio_preview_runtime.hpp
-    src/runtime/runtime_game_api.hpp
-    src/runtime/runtime_registry.hpp
-    src/runtime/studio_runtime_host.hpp
+    src/commands/command_policy.hpp
+    src/commands/command_protocol.hpp
+    src/runtime/query/runtime_commands.hpp
+    src/runtime/scene/scene_runtime.hpp
+    src/runtime/scene/scene_prototype.hpp
+    src/runtime/scene/scene_serializer.hpp
+    src/runtime/query/runtime_queries.hpp
+    src/runtime/scene/runtime_world.hpp
+    src/runtime/interaction/cursor_space_calibration.h
+    src/runtime/scene/proxy_prototype_resolver.hpp
+    src/runtime/scene/studio_default_scene_template.hpp
+    src/runtime/scene/default_scene_json.hpp
+    src/runtime/presentation/vector_icon.hpp
+    src/runtime/host/studio_connector.hpp
+    src/runtime/interaction/studio_camera.hpp
+    src/runtime/interaction/studio_interaction_controller.hpp
+    src/runtime/interaction/studio_picking_service.hpp
+    src/runtime/api/studio_preview_runtime.hpp
+    src/runtime/api/game_runtime_library.hpp
+    src/runtime/api/runtime_game_api.hpp
+    src/runtime/api/runtime_registry.hpp
+    src/runtime/host/studio_runtime_host.hpp
     src/transport/http_server.hpp
     src/studio/file_management_dialog.hpp
     src/studio/new_project_dialog.hpp
     src/studio/project_explorer_panel.hpp
     src/studio/studio_console_panel.hpp
+    src/studio/studio_command_query_service.hpp
     src/studio/studio_layout_state.hpp
+    src/studio/workspace_settings_dialog.hpp
     src/studio/studio_file_actions.hpp
+    src/studio/studio_build_request_service.hpp
+    src/studio/studio_workspace_request_service.hpp
     src/studio/studio_build_system.hpp
     src/studio/file_proxy.hpp
     src/studio/proxy_library.hpp
     src/studio/studio_project_system.hpp
     src/studio/studio_template_system.hpp
-    # Pong game scripts — compiled into studio_core_lib so both Studio.exe
-    # (editor preview) and pong.exe (game build) get them via RegisterStudioBehaviors.
-    ${PROJECT_SOURCE_DIR}/apps/pong/src/pong_rules.hpp
-    ${PROJECT_SOURCE_DIR}/apps/pong/src/pong_ball_script.hpp
-    ${PROJECT_SOURCE_DIR}/apps/pong/src/pong_ball_script.cpp
-    ${PROJECT_SOURCE_DIR}/apps/pong/src/pong_paddle_script.hpp
-    ${PROJECT_SOURCE_DIR}/apps/pong/src/pong_paddle_script.cpp
-    ${PROJECT_SOURCE_DIR}/apps/pong/src/scene_manager_script.hpp
-    ${PROJECT_SOURCE_DIR}/apps/pong/src/scene_manager_script.cpp
 )
 
 if(ENGINE_BUILD_STUDIO_SAMPLE_RUNTIMES)
     target_sources(studio_core_lib PRIVATE
-        src/runtime/hello_game_runtime.cpp
-        src/runtime/hello_game_runtime.hpp
+        src/runtime/api/hello_game_runtime.cpp
+        src/runtime/api/hello_game_runtime.hpp
     )
     target_compile_definitions(studio_core_lib PRIVATE ENGINE_STUDIO_ENABLE_SAMPLE_RUNTIMES=1)
 endif()
@@ -96,7 +100,6 @@ target_include_directories(studio_core_lib
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/src
         ${PROJECT_SOURCE_DIR}/src
-        ${PROJECT_SOURCE_DIR}/apps/pong/src
 )
 
 target_link_libraries(studio_core_lib

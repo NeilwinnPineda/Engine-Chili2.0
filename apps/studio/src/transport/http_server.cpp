@@ -10,6 +10,7 @@
 #include <fstream>
 #include <iterator>
 #include <memory>
+#include <random>
 #include <string>
 #include <utility>
 #include <vector>
@@ -17,6 +18,7 @@
 namespace
 {
     constexpr int kReceiveBufferSize = 4096;
+    constexpr std::size_t kMaximumRequestBytes = 64U * 1024U;
 
     struct HttpClientConnection
     {
@@ -70,7 +72,8 @@ namespace
         int statusCode,
         const std::string& statusText,
         const std::string& contentType,
-        const std::string& body)
+        const std::string& body,
+        const std::string& extraHeaders = std::string())
     {
         return std::string("HTTP/1.1 ") +
             std::to_string(statusCode) +
@@ -80,8 +83,97 @@ namespace
             contentType +
             "\r\nContent-Length: " +
             std::to_string(body.size()) +
-            "\r\nConnection: close\r\nCache-Control: no-store\r\nAccess-Control-Allow-Origin: *\r\n\r\n" +
+            "\r\nConnection: close\r\nCache-Control: no-store\r\n"
+            "X-Content-Type-Options: nosniff\r\n"
+            "Content-Security-Policy: frame-ancestors 'self'\r\n" +
+            extraHeaders +
+            "\r\n" +
             body;
+    }
+
+    std::string GenerateSessionSecret()
+    {
+        constexpr char kHex[] = "0123456789abcdef";
+        std::random_device random;
+        std::string secret;
+        secret.reserve(64U);
+        for (std::size_t index = 0U; index < 32U; ++index)
+        {
+            const unsigned int value = random() & 0xFFU;
+            secret.push_back(kHex[(value >> 4U) & 0x0FU]);
+            secret.push_back(kHex[value & 0x0FU]);
+        }
+        return secret;
+    }
+
+    std::string ExtractHeaderValue(const std::string& request, const std::string& headerName)
+    {
+        const std::string lowerRequest = ToLower(request);
+        const std::string pattern = "\r\n" + ToLower(headerName) + ":";
+        const std::size_t headerPosition = lowerRequest.find(pattern);
+        if (headerPosition == std::string::npos)
+        {
+            return std::string();
+        }
+
+        std::size_t valueStart = headerPosition + pattern.size();
+        while (valueStart < request.size() &&
+               (request[valueStart] == ' ' || request[valueStart] == '\t'))
+        {
+            ++valueStart;
+        }
+
+        const std::size_t valueEnd = request.find("\r\n", valueStart);
+        return request.substr(valueStart, valueEnd - valueStart);
+    }
+
+    bool IsTrustedLocalRequest(
+        const std::string& request,
+        const std::string& expectedHost,
+        const std::string& expectedOrigin)
+    {
+        const std::string host = ToLower(ExtractHeaderValue(request, "Host"));
+        if (host != ToLower(expectedHost))
+        {
+            return false;
+        }
+
+        const std::string fetchSite = ToLower(ExtractHeaderValue(request, "Sec-Fetch-Site"));
+        if (fetchSite == "cross-site")
+        {
+            return false;
+        }
+
+        const std::string origin = ExtractHeaderValue(request, "Origin");
+        return origin.empty() || ToLower(origin) == ToLower(expectedOrigin);
+    }
+
+    bool HasSessionCookie(const std::string& request, const std::string& sessionSecret)
+    {
+        const std::string cookie = ExtractHeaderValue(request, "Cookie");
+        const std::string expected = "studio_session=" + sessionSecret;
+        std::size_t cursor = 0U;
+        while (cursor < cookie.size())
+        {
+            while (cursor < cookie.size() && (cookie[cursor] == ' ' || cookie[cursor] == ';'))
+            {
+                ++cursor;
+            }
+            const std::size_t end = cookie.find(';', cursor);
+            const std::string entry = cookie.substr(
+                cursor,
+                end == std::string::npos ? std::string::npos : end - cursor);
+            if (entry == expected)
+            {
+                return true;
+            }
+            if (end == std::string::npos)
+            {
+                break;
+            }
+            cursor = end + 1U;
+        }
+        return false;
     }
 
     std::string GetContentType(const std::string& path)
@@ -175,6 +267,9 @@ struct HttpServerState
     SOCKET listener = INVALID_SOCKET;
     std::vector<HttpClientConnection> clients;
     bool wsaStarted = false;
+    std::string expectedHost;
+    std::string expectedOrigin;
+    std::string sessionSecret;
 };
 
 HttpServer::HttpServer()
@@ -198,6 +293,9 @@ bool HttpServer::Start(const HttpServerConfig& config, EngineBridge& bridge)
     }
 
     m_baseUrl = "http://" + config.host + ":" + std::to_string(config.port);
+    m_state->expectedHost = config.host + ":" + std::to_string(config.port);
+    m_state->expectedOrigin = m_baseUrl;
+    m_state->sessionSecret = GenerateSessionSecret();
     m_webRootPath = config.webRootPath;
     m_indexFilePath = config.indexFilePath.empty() ? std::string("index.html") : config.indexFilePath;
 
@@ -351,6 +449,17 @@ void HttpServer::Tick(EngineBridge& bridge)
 
         client.requestBuffer.append(buffer, static_cast<std::size_t>(received));
 
+        if (client.requestBuffer.size() > kMaximumRequestBytes)
+        {
+            SendAll(client.socket, BuildHttpResponse(
+                413,
+                "Content Too Large",
+                "text/plain; charset=utf-8",
+                "Request headers are too large."));
+            closesocket(client.socket);
+            continue;
+        }
+
         const std::size_t headerEnd = client.requestBuffer.find("\r\n\r\n");
         if (headerEnd == std::string::npos)
         {
@@ -364,7 +473,14 @@ void HttpServer::Tick(EngineBridge& bridge)
         const std::size_t pathEnd = (methodEnd == std::string::npos) ? std::string::npos : requestLine.find(' ', methodEnd + 1);
 
         std::string response;
-        if (methodEnd == std::string::npos || pathEnd == std::string::npos || requestLine.substr(0, methodEnd) != "GET")
+        if (!IsTrustedLocalRequest(
+                client.requestBuffer,
+                m_state->expectedHost,
+                m_state->expectedOrigin))
+        {
+            response = BuildHttpResponse(403, "Forbidden", "text/plain; charset=utf-8", "Untrusted request origin.");
+        }
+        else if (methodEnd == std::string::npos || pathEnd == std::string::npos || requestLine.substr(0, methodEnd) != "GET")
         {
             response = BuildHttpResponse(405, "Method Not Allowed", "text/plain; charset=utf-8", "Only GET is supported.");
         }
@@ -374,7 +490,15 @@ void HttpServer::Tick(EngineBridge& bridge)
             std::string resolvedPath;
             std::string handledContentType;
             std::string handledBody;
-            if (m_requestHandler && m_requestHandler(requestedPath, handledContentType, handledBody))
+            const bool studioRoute = requestedPath.rfind("/studio/", 0U) == 0U;
+            const bool readOnlyBridgeRoute = requestedPath.rfind("/studio/bridge/command", 0U) == 0U;
+            if (studioRoute &&
+                !readOnlyBridgeRoute &&
+                !HasSessionCookie(client.requestBuffer, m_state->sessionSecret))
+            {
+                response = BuildHttpResponse(401, "Unauthorized", "text/plain; charset=utf-8", "Studio session cookie is required.");
+            }
+            else if (m_requestHandler && m_requestHandler(requestedPath, handledContentType, handledBody))
             {
                 response = BuildHttpResponse(200, "OK", handledContentType, handledBody);
             }
@@ -391,7 +515,13 @@ void HttpServer::Tick(EngineBridge& bridge)
                 }
                 else
                 {
-                    response = BuildHttpResponse(200, "OK", GetContentType(resolvedPath), body);
+                    response = BuildHttpResponse(
+                        200,
+                        "OK",
+                        GetContentType(resolvedPath),
+                        body,
+                        "Set-Cookie: studio_session=" + m_state->sessionSecret +
+                            "; HttpOnly; SameSite=Strict; Path=/\r\n");
                 }
             }
         }

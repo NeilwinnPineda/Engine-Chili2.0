@@ -1,10 +1,15 @@
 #include "command_router.hpp"
+#include "command_policy.hpp"
+#include "command_protocol.hpp"
 
 #include "../bridge/engine_bridge.hpp"
+
+#include <utility>
 
 namespace
 {
     constexpr const char* kProtocolVersion = "1";
+    constexpr std::size_t kMaximumCommandBytes = 16U * 1024U;
 
     std::string EscapeJson(const std::string& value)
     {
@@ -30,17 +35,48 @@ void CommandRouter::Bind(EngineBridge* bridge)
     m_bridge = bridge;
 }
 
+void CommandRouter::SetMutationsEnabled(bool enabled)
+{
+    m_mutationsEnabled = enabled;
+}
+
+void CommandRouter::SetQueryHandler(QueryHandler handler)
+{
+    m_queryHandler = std::move(handler);
+}
+
 std::string CommandRouter::HandleMessage(const std::string& message)
 {
+    return HandleMessageWithMutationPolicy(message, m_mutationsEnabled);
+}
+
+std::string CommandRouter::HandleExternalMessage(const std::string& message)
+{
+    return HandleMessageWithMutationPolicy(message, false);
+}
+
+std::string CommandRouter::HandleMessageWithMutationPolicy(const std::string& message, bool mutationsEnabled)
+{
+    if (message.empty() || message.size() > kMaximumCommandBytes)
+    {
+        return BuildResponse(false, "unknown", std::string(), "Command envelope size is invalid.", "bad_envelope");
+    }
+
     if (!m_bridge)
     {
         return BuildResponse(false, "unknown", std::string(), "Studio backend is not initialized.", "backend_unavailable");
     }
 
-    CommandEnvelope envelope;
-    if (!ParseEnvelope(message, envelope))
+    StudioCommandEnvelope envelope;
+    std::string parseError;
+    if (!ParseStudioCommandEnvelope(message, envelope, parseError))
     {
-        return BuildResponse(false, "unknown", std::string(), "Malformed studio command envelope.", "bad_envelope");
+        return BuildResponse(false, "unknown", std::string(), parseError, "bad_envelope");
+    }
+
+    if (!envelope.protocolVersion.empty() && envelope.protocolVersion != kProtocolVersion)
+    {
+        return BuildResponse(false, envelope.command, envelope.requestId, "Unsupported protocol version.", "unsupported_version");
     }
 
     if (envelope.kind != "command")
@@ -51,6 +87,17 @@ std::string CommandRouter::HandleMessage(const std::string& message)
     if (envelope.command.empty())
     {
         return BuildResponse(false, envelope.command, envelope.requestId, "Command field is required.", "missing_command");
+    }
+
+    const StudioCommandAccess access = ClassifyStudioCommand(envelope.command);
+    if (access == StudioCommandAccess::Unknown)
+    {
+        return BuildResponse(false, envelope.command, envelope.requestId, "Unknown studio command.", "unknown_command");
+    }
+
+    if (!IsStudioCommandAllowed(envelope.command, mutationsEnabled))
+    {
+        return BuildResponse(false, envelope.command, envelope.requestId, "Command requires explicit mutation permission.", "mutation_denied");
     }
 
     if (envelope.command == "hello")
@@ -69,59 +116,40 @@ std::string CommandRouter::HandleMessage(const std::string& message)
         return BuildResponse(true, envelope.command, envelope.requestId, m_bridge->BuildStatusMessage());
     }
 
+    if (envelope.command == "list_capabilities")
+    {
+        return BuildResponse(
+            true,
+            envelope.command,
+            envelope.requestId,
+            BuildStudioCapabilitiesMessage(mutationsEnabled),
+            "ok",
+            BuildStudioCapabilitiesDataJson(kProtocolVersion, mutationsEnabled));
+    }
+
     if (envelope.command == "exit")
     {
         m_bridge->RequestExit();
         return BuildResponse(true, envelope.command, envelope.requestId, "Studio shutdown requested by frontend.");
     }
 
-    return BuildResponse(false, envelope.command, envelope.requestId, "Unknown studio command.", "unknown_command");
-}
-
-bool CommandRouter::ParseEnvelope(const std::string& message, CommandEnvelope& outEnvelope)
-{
-    outEnvelope.kind = ExtractField(message, "kind");
-    outEnvelope.command = ExtractField(message, "command");
-    outEnvelope.sender = ExtractField(message, "sender");
-    outEnvelope.requestId = ExtractField(message, "request_id");
-
-    const std::string version = ExtractField(message, "protocol_version");
-    if (!version.empty() && version != kProtocolVersion)
+    if (m_queryHandler)
     {
-        return false;
+        std::string dataJson;
+        std::string queryMessage;
+        if (m_queryHandler(envelope.command, dataJson, queryMessage))
+        {
+            return BuildResponse(
+                true,
+                envelope.command,
+                envelope.requestId,
+                queryMessage,
+                "ok",
+                dataJson);
+        }
     }
 
-    return !(outEnvelope.kind.empty() && outEnvelope.command.empty() && outEnvelope.sender.empty() && outEnvelope.requestId.empty());
-}
-
-std::string CommandRouter::ExtractField(const std::string& message, const std::string& fieldName)
-{
-    const std::string pattern = "\"" + fieldName + "\"";
-    const std::size_t namePosition = message.find(pattern);
-    if (namePosition == std::string::npos)
-    {
-        return std::string();
-    }
-
-    const std::size_t colonPosition = message.find(':', namePosition + pattern.size());
-    if (colonPosition == std::string::npos)
-    {
-        return std::string();
-    }
-
-    const std::size_t openingQuote = message.find('"', colonPosition + 1);
-    if (openingQuote == std::string::npos)
-    {
-        return std::string();
-    }
-
-    const std::size_t closingQuote = message.find('"', openingQuote + 1);
-    if (closingQuote == std::string::npos)
-    {
-        return std::string();
-    }
-
-    return message.substr(openingQuote + 1, closingQuote - openingQuote - 1);
+    return BuildResponse(false, envelope.command, envelope.requestId, "Command was not handled.", "not_handled");
 }
 
 std::string CommandRouter::BuildResponse(
@@ -129,9 +157,10 @@ std::string CommandRouter::BuildResponse(
     const std::string& command,
     const std::string& requestId,
     const std::string& message,
-    const std::string& code)
+    const std::string& code,
+    const std::string& dataJson)
 {
-    return std::string("{\"kind\":\"response\",\"protocol_version\":\"") +
+    std::string response = std::string("{\"kind\":\"response\",\"protocol_version\":\"") +
         kProtocolVersion +
         "\",\"ok\":" +
         (ok ? "true" : "false") +
@@ -143,5 +172,11 @@ std::string CommandRouter::BuildResponse(
         EscapeJson(code) +
         "\",\"message\":\"" +
         EscapeJson(message) +
-        "\"}";
+        "\"";
+    if (!dataJson.empty())
+    {
+        response += ",\"data\":" + dataJson;
+    }
+    response += "}";
+    return response;
 }

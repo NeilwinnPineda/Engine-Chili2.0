@@ -1,6 +1,6 @@
 #pragma once
 
-#include "runtime/runtime_game_api.hpp"
+#include "runtime/api/runtime_game_api.hpp"
 #include "studio/file_proxy.hpp"
 #include "studio/studio_template_system.hpp"
 
@@ -38,10 +38,15 @@ namespace studio
         std::string previewRuntimeName;
         studio_runtime::ProjectCodeEntryKind codeEntryKind = studio_runtime::ProjectCodeEntryKind::NativeInProcess;
         std::string exportedArtifactPath;
+        std::string builtRuntimeArtifactPath;
+        std::string packagedRuntimeArtifactPath;
+        std::string packagedExecutablePath;
+        std::string logicalExportPath;
         std::string scriptEntryPath;
         std::string adapterExecutablePath;
         std::string defaultScenePath;
         std::string sourceEntryPath;
+        studio_runtime::ProjectDisplaySettings displaySettings{};
         std::string assetProxyFolder;
         std::string manifestText;
         std::string message;
@@ -79,6 +84,7 @@ namespace studio
         std::string adapterExecutablePath;
         std::string defaultScenePath;
         std::string sourceEntryPath;
+        studio_runtime::ProjectDisplaySettings displaySettings{};
         std::string assetProxyFolder;
         std::string manifestText;
     };
@@ -94,6 +100,11 @@ namespace studio
         SaveProjectResult SaveProject(const SaveProjectRequest& request);
         StudioProject GetCurrentProject() const;
         std::string GetCurrentProjectRoot() const;
+        void RecordBuildOutputs(
+            const std::string& builtRuntimeArtifactPath,
+            const std::string& packagedRuntimeArtifactPath,
+            const std::string& packagedExecutablePath,
+            const std::string& logicalExportPath);
 
         static std::string MakeProjectId(const std::string& projectName);
         static std::string GetProjectWorkspacePath(const std::string& projectId);

@@ -8,7 +8,9 @@ on:
 
 jobs:
   build-windows:
-    runs-on: windows-latest
+    # Pin the compiler image. windows-latest moved to a VS 2026 preview image
+    # whose SDK/toolset combination currently fails in the Windows headers.
+    runs-on: windows-2022
 
     steps:
       - name: Check out repository
@@ -16,6 +18,8 @@ jobs:
 
       - name: Set up MSVC Developer Command Prompt
         uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
 
       - name: Set up Ninja
         uses: seanmiddleditch/gha-setup-ninja@v5
@@ -27,6 +31,10 @@ jobs:
       - name: Build
         shell: powershell
         run: .\build.cmd
+
+      - name: Test
+        shell: powershell
+        run: .\test.cmd
 
       - name: Verify Artifacts
         shell: powershell

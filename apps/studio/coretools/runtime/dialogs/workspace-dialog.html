@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configure Workspace</title>
+    <link rel="stylesheet" href="../shared/studio.css">
+    <style>
+        body {
+            padding: 18px;
+            background: linear-gradient(180deg, #fffaf4 0%, #fffdf9 100%);
+        }
+
+        .workspace-shell {
+            display: grid;
+            gap: 14px;
+        }
+
+        .workspace-actions {
+            display: grid;
+            gap: 10px;
+        }
+
+        .workspace-action {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            width: 100%;
+            padding: 12px 14px;
+            text-align: left;
+        }
+
+        .workspace-action-copy {
+            display: grid;
+            gap: 2px;
+        }
+
+        .workspace-action-copy strong {
+            font-size: 0.92rem;
+        }
+
+        .workspace-status {
+            color: var(--color-text-muted);
+            font-size: var(--text-sm);
+            min-height: 18px;
+        }
+
+        .workspace-check {
+            color: var(--color-success);
+            font-weight: 700;
+        }
+
+        .workspace-action.is-off .workspace-check {
+            color: transparent;
+        }
+    </style>
+</head>
+
+<body>
+    <main class="workspace-shell">
+        <header>
+            <p class="kicker">Workspace</p>
+            <h1>Configure Workspace</h1>
+            <p class="subtitle">Shape the Studio shell while we flesh out the editor workspace.</p>
+        </header>
+
+        <section class="panel" style="padding: 14px;" aria-label="Workspace bars">
+            <div class="workspace-actions">
+                <button class="workspace-action" type="button" data-workspace-action="left-bar">
+                    <span class="workspace-action-copy">
+                        <strong>Left Bar</strong>
+                        <span class="body-copy">CoreTools launcher and stage pipeline.</span>
+                    </span>
+                    <span class="workspace-check" aria-hidden="true">✓</span>
+                </button>
+
+                <button class="workspace-action" type="button" data-workspace-action="bottom-bar">
+                    <span class="workspace-action-copy">
+                        <strong>Bottom Bar</strong>
+                        <span class="body-copy">Console and lower shell utilities.</span>
+                    </span>
+                    <span class="workspace-check" aria-hidden="true">✓</span>
+                </button>
+
+                <button class="workspace-action" type="button" data-workspace-action="right-bar">
+                    <span class="workspace-action-copy">
+                        <strong>Right Bar</strong>
+                        <span class="body-copy">Explorer, hierarchy, and inspector workspace.</span>
+                    </span>
+                    <span class="workspace-check" aria-hidden="true">✓</span>
+                </button>
+            </div>
+        </section>
+
+        <p class="workspace-status" id="workspace-status" aria-live="polite"></p>
+    </main>
+
+    <script>
+        (function () {
+            const status = document.getElementById("workspace-status");
+            const buttons = Array.prototype.slice.call(document.querySelectorAll("[data-workspace-action]"));
+
+            function callJson(route) {
+                return fetch("http://127.0.0.1:37620" + route)
+                    .then(function (response) { return response.json(); })
+                    .catch(function () { return null; });
+            }
+
+            function applyState(result) {
+                if (!result) {
+                    return;
+                }
+
+                const states = {
+                    "left-bar": !!result.leftVisible,
+                    "bottom-bar": !!result.bottomVisible,
+                    "right-bar": !!result.rightVisible
+                };
+
+                buttons.forEach(function (button) {
+                    const action = button.getAttribute("data-workspace-action");
+                    button.classList.toggle("is-off", !states[action]);
+                });
+
+                if (status && result.message) {
+                    status.textContent = result.message;
+                }
+            }
+
+            function refreshState() {
+                callJson("/studio/workspace/state")
+                    .then(function (result) {
+                        applyState(result);
+                    });
+            }
+
+            buttons.forEach(function (button) {
+                button.addEventListener("click", function () {
+                    const action = button.getAttribute("data-workspace-action");
+                    const route = "/studio/workspace/toggle-" + action;
+                    button.disabled = true;
+                    callJson(route)
+                        .then(function (result) {
+                            applyState(result);
+                        })
+                        .finally(function () {
+                            button.disabled = false;
+                        });
+                });
+            });
+
+            refreshState();
+        }());
+    </script>
+</body>
+
+</html>

@@ -19,17 +19,19 @@ namespace studio
     void StudioLayoutState::Recalculate(
         int windowWidth,
         int windowHeight,
+        bool leftSidebarVisible,
         bool rightInspectorVisible,
         bool bottomConsoleVisible)
     {
         m_windowWidth = std::max(0, windowWidth);
         m_windowHeight = std::max(0, windowHeight);
 
+        const int leftInset = leftSidebarVisible ? m_leftSidebarWidth : 0;
         const int rightInset = rightInspectorVisible ? m_rightInspectorWidth : 0;
         const int bottomInset = bottomConsoleVisible ? m_bottomConsoleHeight : 0;
-        m_viewportRect.x = m_leftSidebarWidth;
+        m_viewportRect.x = leftInset;
         m_viewportRect.y = m_topToolbarHeight;
-        m_viewportRect.width = std::max(1, m_windowWidth - m_leftSidebarWidth - rightInset);
+        m_viewportRect.width = std::max(1, m_windowWidth - leftInset - rightInset);
         m_viewportRect.height = std::max(1, m_windowHeight - m_topToolbarHeight - bottomInset);
     }
 

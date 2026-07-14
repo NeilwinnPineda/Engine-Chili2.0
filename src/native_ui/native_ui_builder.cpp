@@ -85,6 +85,146 @@ NativeUiBuilder::PanelBuilder& NativeUiBuilder::PanelBuilder::Row(const std::str
     return Row(label, value ? std::string(value) : std::string());
 }
 
+NativeUiBuilder::ButtonBuilder::ButtonBuilder(NativeUiBuilder& owner, std::size_t buttonIndex)
+    : m_owner(owner),
+      m_buttonIndex(buttonIndex)
+{
+}
+
+NativeUiBuilder::ButtonBuilder& NativeUiBuilder::ButtonBuilder::Visible(bool visible)
+{
+    m_owner.m_frame.nativeButtons[m_buttonIndex].visible = visible;
+    return *this;
+}
+
+NativeUiBuilder::ButtonBuilder& NativeUiBuilder::ButtonBuilder::Enabled(bool enabled)
+{
+    m_owner.m_frame.nativeButtons[m_buttonIndex].enabled = enabled;
+    return *this;
+}
+
+NativeUiBuilder::ButtonBuilder& NativeUiBuilder::ButtonBuilder::Bounds(int x, int y, int width, int height)
+{
+    NativeUiButton& button = m_owner.m_frame.nativeButtons[m_buttonIndex];
+    button.useAnchor = false;
+    button.x = x;
+    button.y = y;
+    button.width = width;
+    button.height = height;
+    return *this;
+}
+
+NativeUiBuilder::ButtonBuilder& NativeUiBuilder::ButtonBuilder::Anchor(
+    NativeUiAnchor anchor,
+    int offsetX,
+    int offsetY,
+    int width,
+    int height)
+{
+    NativeUiButton& button = m_owner.m_frame.nativeButtons[m_buttonIndex];
+    button.anchor = anchor;
+    button.offsetX = offsetX;
+    button.offsetY = offsetY;
+    button.width = width;
+    button.height = height;
+    button.useAnchor = true;
+    return *this;
+}
+
+NativeUiBuilder::FormBuilder::FormBuilder(NativeUiBuilder& owner, std::size_t formIndex)
+    : m_owner(owner),
+      m_formIndex(formIndex)
+{
+}
+
+NativeUiBuilder::FormBuilder& NativeUiBuilder::FormBuilder::Visible(bool visible)
+{
+    m_owner.m_frame.forms[m_formIndex].visible = visible;
+    return *this;
+}
+
+NativeUiBuilder::FormBuilder& NativeUiBuilder::FormBuilder::Bounds(int x, int y, int width, int height)
+{
+    NativeUiForm& form = m_owner.m_frame.forms[m_formIndex];
+    form.useAnchor = false;
+    form.x = x;
+    form.y = y;
+    form.width = width;
+    form.height = height;
+    return *this;
+}
+
+NativeUiBuilder::FormBuilder& NativeUiBuilder::FormBuilder::Anchor(
+    NativeUiAnchor anchor,
+    int offsetX,
+    int offsetY,
+    int width,
+    int height)
+{
+    NativeUiForm& form = m_owner.m_frame.forms[m_formIndex];
+    form.anchor = anchor;
+    form.offsetX = offsetX;
+    form.offsetY = offsetY;
+    form.width = width;
+    form.height = height;
+    form.useAnchor = true;
+    return *this;
+}
+
+NativeUiBuilder::FormBuilder& NativeUiBuilder::FormBuilder::Body(const std::wstring& body)
+{
+    m_owner.m_frame.forms[m_formIndex].body = body;
+    return *this;
+}
+
+NativeUiBuilder::FormBuilder& NativeUiBuilder::FormBuilder::Body(const wchar_t* body)
+{
+    return Body(body ? std::wstring(body) : std::wstring());
+}
+
+NativeUiBuilder::FormBuilder& NativeUiBuilder::FormBuilder::HeaderHeight(int height)
+{
+    m_owner.m_frame.forms[m_formIndex].headerHeight = height;
+    return *this;
+}
+
+NativeUiBuilder::FormBuilder& NativeUiBuilder::FormBuilder::Padding(int padding)
+{
+    m_owner.m_frame.forms[m_formIndex].padding = padding;
+    return *this;
+}
+
+NativeUiBuilder::FormBuilder& NativeUiBuilder::FormBuilder::Colors(
+    std::uint32_t titleTextColor,
+    std::uint32_t bodyTextColor,
+    std::uint32_t backgroundColor,
+    std::uint32_t headerColor,
+    std::uint32_t borderColor)
+{
+    NativeUiForm& form = m_owner.m_frame.forms[m_formIndex];
+    form.titleTextColor = titleTextColor;
+    form.bodyTextColor = bodyTextColor;
+    form.backgroundColor = backgroundColor;
+    form.headerColor = headerColor;
+    form.borderColor = borderColor;
+    return *this;
+}
+
+NativeUiBuilder::FormBuilder& NativeUiBuilder::FormBuilder::Colors(
+    const ColorPrototype& titleTextColor,
+    const ColorPrototype& bodyTextColor,
+    const ColorPrototype& backgroundColor,
+    const ColorPrototype& headerColor,
+    const ColorPrototype& borderColor)
+{
+    return Colors(
+        titleTextColor.ToArgb(),
+        bodyTextColor.ToArgb(),
+        backgroundColor.ToArgb(),
+        headerColor.ToArgb(),
+        borderColor.ToArgb());
+}
+
 NativeUiBuilder& NativeUiBuilder::WindowTitle(const std::wstring& title)
 {
     m_frame.hasWindowTitle = true;
@@ -95,6 +235,41 @@ NativeUiBuilder& NativeUiBuilder::WindowTitle(const std::wstring& title)
 NativeUiBuilder& NativeUiBuilder::WindowTitle(const wchar_t* title)
 {
     return WindowTitle(title ? std::wstring(title) : std::wstring());
+}
+
+NativeUiBuilder& NativeUiBuilder::Canvas(int designWidth, int designHeight, bool lockAspectRatio)
+{
+    NativeUiCanvasSettings settings;
+    settings.designWidth = designWidth;
+    settings.designHeight = designHeight;
+    settings.lockAspectRatio = lockAspectRatio;
+    if (designWidth > 0 && designHeight > 0)
+    {
+        settings.aspectRatio = static_cast<float>(designWidth) / static_cast<float>(designHeight);
+    }
+
+    return Canvas(settings);
+}
+
+NativeUiBuilder& NativeUiBuilder::Canvas(
+    int designWidth,
+    int designHeight,
+    float aspectRatio,
+    bool lockAspectRatio)
+{
+    NativeUiCanvasSettings settings;
+    settings.designWidth = designWidth;
+    settings.designHeight = designHeight;
+    settings.aspectRatio = aspectRatio;
+    settings.lockAspectRatio = lockAspectRatio;
+    return Canvas(settings);
+}
+
+NativeUiBuilder& NativeUiBuilder::Canvas(const NativeUiCanvasSettings& settings)
+{
+    m_frame.hasCanvasSettings = true;
+    m_frame.canvasSettings = settings;
+    return *this;
 }
 
 NativeUiBuilder& NativeUiBuilder::OverlayEnabled(bool enabled)
@@ -355,6 +530,34 @@ NativeUiBuilder::PanelBuilder NativeUiBuilder::Panel(const std::string& title)
     panel.title = title;
     m_frame.panels.push_back(std::move(panel));
     return PanelBuilder(*this, m_frame.panels.size() - 1U);
+}
+
+NativeUiBuilder::ButtonBuilder NativeUiBuilder::Button(const std::string& name, const std::wstring& text)
+{
+    NativeUiButton button;
+    button.name = name;
+    button.text = text;
+    m_frame.nativeButtons.push_back(std::move(button));
+    return ButtonBuilder(*this, m_frame.nativeButtons.size() - 1U);
+}
+
+NativeUiBuilder::ButtonBuilder NativeUiBuilder::Button(const std::string& name, const wchar_t* text)
+{
+    return Button(name, text ? std::wstring(text) : std::wstring());
+}
+
+NativeUiBuilder::FormBuilder NativeUiBuilder::Form(const std::string& name, const std::wstring& title)
+{
+    NativeUiForm form;
+    form.name = name;
+    form.title = title;
+    m_frame.forms.push_back(std::move(form));
+    return FormBuilder(*this, m_frame.forms.size() - 1U);
+}
+
+NativeUiBuilder::FormBuilder NativeUiBuilder::Form(const std::string& name, const wchar_t* title)
+{
+    return Form(name, title ? std::wstring(title) : std::wstring());
 }
 
 NativeUiFrame NativeUiBuilder::Build() const

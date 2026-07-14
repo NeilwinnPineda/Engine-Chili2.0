@@ -214,6 +214,7 @@ private:
     bool SetNativeButtonBounds(NativeButtonHandle handle, const NativeControlRect& rect);
     bool SetNativeButtonText(NativeButtonHandle handle, const std::wstring& text);
     bool SetNativeButtonVisible(NativeButtonHandle handle, bool visible);
+    bool SetNativeButtonEnabled(NativeButtonHandle handle, bool enabled);
     bool ConsumeNativeButtonPressed(NativeButtonHandle handle);
     bool IsNativeButtonOpen(NativeButtonHandle handle) const;
     NativeLabelHandle CreateNativeLabel(const NativeLabelDesc& desc);
@@ -221,6 +222,13 @@ private:
     bool SetNativeLabelText(NativeLabelHandle handle, const std::wstring& text);
     bool SetNativeLabelBounds(NativeLabelHandle handle, const NativeControlRect& rect);
     bool SetNativeLabelVisible(NativeLabelHandle handle, bool visible);
+    bool SetNativeLabelStyle(
+        NativeLabelHandle handle,
+        std::uint32_t textColor,
+        std::uint32_t backgroundColor,
+        bool transparentBackground,
+        bool multiline,
+        bool alignLeft);
     bool SyncNativeLabels(const std::vector<NativeLabelDesc>& labels);
 
     bool IsSoundAvailable() const;

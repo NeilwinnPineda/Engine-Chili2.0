@@ -844,6 +844,12 @@ std::wstring WebDialogHost::BuildContentUri() const
         return std::wstring();
     }
 
+    if (m_contentPath.rfind("http://", 0U) == 0U ||
+        m_contentPath.rfind("https://", 0U) == 0U)
+    {
+        return ToWideString(m_contentPath);
+    }
+
     std::wstring absolutePath = ToWideString(m_contentPath);
     std::replace(absolutePath.begin(), absolutePath.end(), L'\\', L'/');
 
@@ -877,8 +883,11 @@ bool WebDialogHost::NavigateToCurrentContent()
         return false;
     }
 
+    const bool remoteContent =
+        m_contentPath.rfind("http://", 0U) == 0U ||
+        m_contentPath.rfind("https://", 0U) == 0U;
     const std::wstring contentPath = ToWideString(m_contentPath);
-    if (!FileExists(contentPath))
+    if (!remoteContent && !FileExists(contentPath))
     {
         ShowFallbackText(L"Web dialog content file was not found.");
         return false;

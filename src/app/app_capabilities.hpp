@@ -240,6 +240,7 @@ public:
     virtual ~IAppNativeUi() = default;
 
     virtual void Submit(const NativeUiFrame& frame) = 0;
+    virtual bool ConsumeButtonPressed(const std::string& name) = 0;
 };
 
 class IAppSound

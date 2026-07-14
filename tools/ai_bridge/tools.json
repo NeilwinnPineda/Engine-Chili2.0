@@ -1,0 +1,39 @@
+{
+  "tools": [
+    {
+      "name": "studio_status",
+      "command": "get_status",
+      "description": "Read the native Studio backend status."
+    },
+    {
+      "name": "studio_capabilities",
+      "command": "list_capabilities",
+      "description": "Read the Studio command capabilities contract and mutation policy."
+    },
+    {
+      "name": "workspace_status",
+      "command": "get_workspace_status",
+      "description": "Read visible workspace panels and layout state."
+    },
+    {
+      "name": "project_status",
+      "command": "get_project_status",
+      "description": "Inspect the currently opened project and runtime artifact."
+    },
+    {
+      "name": "list_entities",
+      "command": "list_entities",
+      "description": "List scene entities and their high-level component flags."
+    },
+    {
+      "name": "selected_entity",
+      "command": "get_selected_entity",
+      "description": "Inspect the current centralized Studio selection."
+    },
+    {
+      "name": "runtime_status",
+      "command": "get_runtime_status",
+      "description": "Read play state, FPS, active project, and runtime artifact."
+    }
+  ]
+}

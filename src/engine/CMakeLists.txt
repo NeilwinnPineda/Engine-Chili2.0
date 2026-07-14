@@ -1,26 +1,28 @@
 # EngineRuntime is the reusable engine DLL. It owns engine systems and module
 # coordination; game/editor behavior must live in higher-level DLLs or hosts.
+get_filename_component(ENGINE_CHILI_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
+
 file(GLOB_RECURSE ENGINE_RUNTIME_SOURCES CONFIGURE_DEPENDS
-    "${PROJECT_SOURCE_DIR}/src/app/*.cpp"
-    "${PROJECT_SOURCE_DIR}/src/core/*.cpp"
-    "${PROJECT_SOURCE_DIR}/src/engine/*.cpp"
-    "${PROJECT_SOURCE_DIR}/src/input/*.cpp"
-    "${PROJECT_SOURCE_DIR}/src/modules/*.cpp"
-    "${PROJECT_SOURCE_DIR}/src/native_ui/*.cpp"
-    "${PROJECT_SOURCE_DIR}/src/prototypes/*.cpp"
-    "${PROJECT_SOURCE_DIR}/src/systems/*.cpp"
+    "${ENGINE_CHILI_ROOT}/src/app/*.cpp"
+    "${ENGINE_CHILI_ROOT}/src/core/*.cpp"
+    "${ENGINE_CHILI_ROOT}/src/engine/*.cpp"
+    "${ENGINE_CHILI_ROOT}/src/input/*.cpp"
+    "${ENGINE_CHILI_ROOT}/src/modules/*.cpp"
+    "${ENGINE_CHILI_ROOT}/src/native_ui/*.cpp"
+    "${ENGINE_CHILI_ROOT}/src/prototypes/*.cpp"
+    "${ENGINE_CHILI_ROOT}/src/systems/*.cpp"
 )
 
 file(GLOB_RECURSE ENGINE_RUNTIME_HEADERS CONFIGURE_DEPENDS
-    "${PROJECT_SOURCE_DIR}/include/*.hpp"
-    "${PROJECT_SOURCE_DIR}/src/app/*.hpp"
-    "${PROJECT_SOURCE_DIR}/src/core/*.hpp"
-    "${PROJECT_SOURCE_DIR}/src/engine/*.hpp"
-    "${PROJECT_SOURCE_DIR}/src/input/*.h"
-    "${PROJECT_SOURCE_DIR}/src/modules/*.hpp"
-    "${PROJECT_SOURCE_DIR}/src/native_ui/*.hpp"
-    "${PROJECT_SOURCE_DIR}/src/prototypes/*.hpp"
-    "${PROJECT_SOURCE_DIR}/src/systems/*.hpp"
+    "${ENGINE_CHILI_ROOT}/include/*.hpp"
+    "${ENGINE_CHILI_ROOT}/src/app/*.hpp"
+    "${ENGINE_CHILI_ROOT}/src/core/*.hpp"
+    "${ENGINE_CHILI_ROOT}/src/engine/*.hpp"
+    "${ENGINE_CHILI_ROOT}/src/input/*.h"
+    "${ENGINE_CHILI_ROOT}/src/modules/*.hpp"
+    "${ENGINE_CHILI_ROOT}/src/native_ui/*.hpp"
+    "${ENGINE_CHILI_ROOT}/src/prototypes/*.hpp"
+    "${ENGINE_CHILI_ROOT}/src/systems/*.hpp"
 )
 
 add_library(EngineRuntime SHARED
@@ -32,8 +34,8 @@ add_library(engine_core ALIAS EngineRuntime)
 
 target_include_directories(EngineRuntime
     PUBLIC
-        ${PROJECT_SOURCE_DIR}/include
-        ${PROJECT_SOURCE_DIR}/src
+        ${ENGINE_CHILI_ROOT}/include
+        ${ENGINE_CHILI_ROOT}/src
 )
 
 target_compile_features(EngineRuntime PUBLIC cxx_std_17)

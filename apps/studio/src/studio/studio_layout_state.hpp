@@ -8,7 +8,7 @@ namespace studio
     {
     public:
         void SetChromeSizes(int topToolbarHeight, int leftSidebarWidth, int rightInspectorWidth, int bottomConsoleHeight);
-        void Recalculate(int windowWidth, int windowHeight, bool rightInspectorVisible, bool bottomConsoleVisible);
+        void Recalculate(int windowWidth, int windowHeight, bool leftSidebarVisible, bool rightInspectorVisible, bool bottomConsoleVisible);
 
         int GetWindowWidth() const;
         int GetWindowHeight() const;

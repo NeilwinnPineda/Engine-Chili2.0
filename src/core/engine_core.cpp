@@ -17,6 +17,8 @@
 #include "../modules/webview/webview_module.hpp"
 #include "../modules/native_ui/native_ui_module.hpp"
 #include "../native_ui/native_ui_compiler.hpp"
+#include "../native_ui/ui_canvas_metrics.hpp"
+#include "../prototypes/presentation/overlay_frame_builder.hpp"
 
 #include <windows.h>
 
@@ -26,6 +28,8 @@
 #include <sstream>
 #include <string>
 #include <thread>
+#include <unordered_map>
+#include <unordered_set>
 
 #ifdef CreateDirectory
 #undef CreateDirectory
@@ -602,22 +606,22 @@ public:
             m_core.ClearFrame(frame.clearColor);
         }
 
-        const NativeUiCompiledFrame compiled = NativeUiCompiler::Compile(frame);
+        const NativeUiCanvasMetrics canvasMetrics = ResolveCanvasMetrics(frame);
+        NativeUiCompiledFrame compiled = NativeUiCompiler::Compile(frame);
+        AppendFormPresentation(frame, canvasMetrics, compiled);
         if (compiled.hasPresentationFrame)
         {
             m_core.SubmitRenderFrame(compiled.presentationFrame);
         }
 
         std::vector<NativeLabelDesc> labels;
-        labels.reserve(frame.nativeLabels.size());
+        labels.reserve(frame.nativeLabels.size() + frame.panels.size() + (frame.forms.size() * 2U));
         for (const NativeUiLabel& label : frame.nativeLabels)
         {
             NativeLabelDesc desc;
             desc.name = label.name;
             desc.text = label.text;
-            desc.rect = label.useAnchor
-                ? ResolveAnchoredRect(label.anchor, label.offsetX, label.offsetY, label.width, label.height)
-                : NativeControlRect{ label.x, label.y, label.width, label.height };
+            desc.rect = ToNativeControlRect(ResolveRect(label, canvasMetrics));
             desc.visible = label.visible;
             desc.textColor = label.textColor;
             desc.backgroundColor = label.backgroundColor;
@@ -635,7 +639,7 @@ public:
             {
                 desc.text += L"\n" + EngineCore::ToWideString(row.label) + L": " + EngineCore::ToWideString(row.value);
             }
-            desc.rect = ResolveAnchoredRect(panel.anchor, panel.offsetX, panel.offsetY, panel.width, panel.height);
+            desc.rect = ToNativeControlRect(ResolveRect(panel, canvasMetrics));
             desc.visible = panel.visible;
             desc.textColor = panel.textColor;
             desc.backgroundColor = panel.backgroundColor;
@@ -644,61 +648,388 @@ public:
             desc.alignLeft = true;
             labels.push_back(std::move(desc));
         }
-        m_core.SyncNativeLabels(labels);
+
+        for (const NativeUiForm& form : frame.forms)
+        {
+            if (!form.visible || form.name.empty())
+            {
+                continue;
+            }
+
+            const NativeUiPixelRect rect = ResolveRect(form, canvasMetrics);
+            const int padding = std::max(0, form.padding);
+            const int headerHeight = std::max(24, std::min(rect.height, form.headerHeight));
+
+            NativeLabelDesc titleDesc;
+            titleDesc.name = form.name + ".title";
+            titleDesc.text = form.title;
+            titleDesc.rect = NativeControlRect{
+                rect.x + padding,
+                rect.y + 4,
+                std::max(1, rect.width - (padding * 2)),
+                std::max(20, headerHeight - 8)
+            };
+            titleDesc.visible = true;
+            titleDesc.textColor = form.titleTextColor;
+            titleDesc.backgroundColor = 0x00000000u;
+            titleDesc.transparentBackground = true;
+            titleDesc.multiline = false;
+            titleDesc.alignLeft = true;
+            labels.push_back(std::move(titleDesc));
+
+            NativeLabelDesc bodyDesc;
+            bodyDesc.name = form.name + ".body";
+            bodyDesc.text = form.body;
+            bodyDesc.rect = NativeControlRect{
+                rect.x + padding,
+                rect.y + headerHeight + padding,
+                std::max(1, rect.width - (padding * 2)),
+                std::max(1, rect.height - headerHeight - (padding * 2))
+            };
+            bodyDesc.visible = true;
+            bodyDesc.textColor = form.bodyTextColor;
+            bodyDesc.backgroundColor = 0x00000000u;
+            bodyDesc.transparentBackground = true;
+            bodyDesc.multiline = true;
+            bodyDesc.alignLeft = true;
+            labels.push_back(std::move(bodyDesc));
+        }
+
+        std::vector<NativeButtonDesc> buttons;
+        buttons.reserve(frame.nativeButtons.size());
+        for (const NativeUiButton& button : frame.nativeButtons)
+        {
+            if (button.name.empty())
+            {
+                continue;
+            }
+
+            NativeButtonDesc desc;
+            desc.name = button.name;
+            desc.text = button.text;
+            desc.rect = ToNativeControlRect(ResolveRect(button, canvasMetrics));
+            desc.visible = button.visible;
+            desc.enabled = button.enabled;
+            buttons.push_back(std::move(desc));
+        }
+
+        SyncLabels(labels);
+        SyncButtons(buttons);
 
         m_core.SetWindowOverlayText(compiled.overlayText);
     }
 
-private:
-    NativeControlRect ResolveAnchoredRect(
-        NativeUiAnchor anchor,
-        int offsetX,
-        int offsetY,
-        int width,
-        int height) const
+    bool ConsumeButtonPressed(const std::string& name) override
     {
-        const int windowWidth = std::max(0, m_core.GetWindowWidth());
-        const int windowHeight = std::max(0, m_core.GetWindowHeight());
-
-        int x = offsetX;
-        int y = offsetY;
-        switch (anchor)
+        const auto iterator = m_buttonHandles.find(name);
+        if (iterator == m_buttonHandles.end())
         {
-        case NativeUiAnchor::TopCenter:
-            x = (windowWidth - width) / 2 + offsetX;
-            y = offsetY;
-            break;
-        case NativeUiAnchor::TopRight:
-            x = windowWidth - width - offsetX;
-            y = offsetY;
-            break;
-        case NativeUiAnchor::Center:
-            x = (windowWidth - width) / 2 + offsetX;
-            y = (windowHeight - height) / 2 + offsetY;
-            break;
-        case NativeUiAnchor::BottomLeft:
-            x = offsetX;
-            y = windowHeight - height - offsetY;
-            break;
-        case NativeUiAnchor::BottomCenter:
-            x = (windowWidth - width) / 2 + offsetX;
-            y = windowHeight - height - offsetY;
-            break;
-        case NativeUiAnchor::BottomRight:
-            x = windowWidth - width - offsetX;
-            y = windowHeight - height - offsetY;
-            break;
-        case NativeUiAnchor::TopLeft:
-        default:
-            x = offsetX;
-            y = offsetY;
-            break;
+            return false;
         }
 
-        return NativeControlRect{ x, y, width, height };
+        return m_core.ConsumeNativeButtonPressed(iterator->second);
+    }
+
+private:
+    NativeUiCanvasMetrics ResolveCanvasMetrics(const NativeUiFrame& frame) const
+    {
+        if (frame.hasCanvasSettings)
+        {
+            return ResolveNativeUiCanvasMetrics(
+                frame.canvasSettings,
+                m_core.GetWindowWidth(),
+                m_core.GetWindowHeight());
+        }
+
+        NativeUiCanvasSettings settings;
+        settings.designWidth = std::max(1, m_core.GetWindowWidth());
+        settings.designHeight = std::max(1, m_core.GetWindowHeight());
+        settings.aspectRatio = static_cast<float>(settings.designWidth) / static_cast<float>(settings.designHeight);
+        settings.lockAspectRatio = false;
+        return ResolveNativeUiCanvasMetrics(settings, settings.designWidth, settings.designHeight);
+    }
+
+    void AppendFormPresentation(
+        const NativeUiFrame& frame,
+        const NativeUiCanvasMetrics& canvasMetrics,
+        NativeUiCompiledFrame& compiled) const
+    {
+        std::size_t expectedItems = 0U;
+        for (const NativeUiForm& form : frame.forms)
+        {
+            if (form.visible)
+            {
+                expectedItems += 4U;
+            }
+        }
+
+        if (expectedItems == 0U)
+        {
+            return;
+        }
+
+        OverlayFrameBuilder overlay(expectedItems);
+        for (const NativeUiForm& form : frame.forms)
+        {
+            if (!form.visible)
+            {
+                continue;
+            }
+
+            AppendFormOverlay(form, ResolveRect(form, canvasMetrics), overlay);
+        }
+
+        FramePrototype overlayFrame = overlay.Build();
+        if (overlayFrame.IsEmpty())
+        {
+            return;
+        }
+
+        if (!compiled.hasPresentationFrame)
+        {
+            compiled.presentationFrame = std::move(overlayFrame);
+            compiled.hasPresentationFrame = true;
+            return;
+        }
+
+        for (PassPrototype& pass : overlayFrame.passes)
+        {
+            compiled.presentationFrame.passes.push_back(std::move(pass));
+        }
+    }
+
+    void AppendFormOverlay(
+        const NativeUiForm& form,
+        const NativeUiPixelRect& rect,
+        OverlayFrameBuilder& overlay) const
+    {
+        if (rect.width <= 0 || rect.height <= 0)
+        {
+            return;
+        }
+
+        const int border = 2;
+        const int headerHeight = std::max(24, std::min(rect.height, form.headerHeight));
+
+        AppendScreenRect(overlay, rect, form.borderColor);
+        AppendScreenRect(
+            overlay,
+            NativeUiPixelRect{
+                rect.x + border,
+                rect.y + border,
+                std::max(1, rect.width - (border * 2)),
+                std::max(1, rect.height - (border * 2))
+            },
+            form.backgroundColor);
+        AppendScreenRect(
+            overlay,
+            NativeUiPixelRect{
+                rect.x + border,
+                rect.y + border,
+                std::max(1, rect.width - (border * 2)),
+                std::max(1, headerHeight - border)
+            },
+            form.headerColor);
+        AppendScreenRect(
+            overlay,
+            NativeUiPixelRect{
+                rect.x + border,
+                rect.y + headerHeight,
+                std::max(1, rect.width - (border * 2)),
+                1
+            },
+            form.borderColor);
+    }
+
+    void AppendScreenRect(
+        OverlayFrameBuilder& overlay,
+        const NativeUiPixelRect& rect,
+        std::uint32_t color) const
+    {
+        if (rect.width <= 0 || rect.height <= 0)
+        {
+            return;
+        }
+
+        const int windowWidth = std::max(1, m_core.GetWindowWidth());
+        const int windowHeight = std::max(1, m_core.GetWindowHeight());
+        const float left = (static_cast<float>(rect.x) / static_cast<float>(windowWidth)) * 2.0f - 1.0f;
+        const float right = (static_cast<float>(rect.x + rect.width) / static_cast<float>(windowWidth)) * 2.0f - 1.0f;
+        const float top = 1.0f - (static_cast<float>(rect.y) / static_cast<float>(windowHeight)) * 2.0f;
+        const float bottom = 1.0f - (static_cast<float>(rect.y + rect.height) / static_cast<float>(windowHeight)) * 2.0f;
+
+        overlay.Rect(
+            (left + right) * 0.5f,
+            (top + bottom) * 0.5f,
+            std::max(0.0f, (right - left) * 0.5f),
+            std::max(0.0f, (top - bottom) * 0.5f),
+            ColorPrototype::FromArgb(color));
+    }
+
+    void SyncButtons(const std::vector<NativeButtonDesc>& buttons)
+    {
+        std::unordered_set<std::string> seen;
+        seen.reserve(buttons.size());
+
+        for (const NativeButtonDesc& desc : buttons)
+        {
+            if (desc.name.empty())
+            {
+                continue;
+            }
+
+            seen.insert(desc.name);
+            auto iterator = m_buttonHandles.find(desc.name);
+            if (iterator == m_buttonHandles.end())
+            {
+                const EngineCore::NativeButtonHandle handle = m_core.CreateNativeButton(desc);
+                if (handle != 0U)
+                {
+                    m_buttonHandles.emplace(desc.name, handle);
+                }
+                continue;
+            }
+
+            const EngineCore::NativeButtonHandle handle = iterator->second;
+            m_core.SetNativeButtonText(handle, desc.text);
+            m_core.SetNativeButtonBounds(handle, desc.rect);
+            m_core.SetNativeButtonVisible(handle, desc.visible);
+            m_core.SetNativeButtonEnabled(handle, desc.enabled);
+        }
+
+        for (auto iterator = m_buttonHandles.begin(); iterator != m_buttonHandles.end();)
+        {
+            if (seen.find(iterator->first) != seen.end())
+            {
+                ++iterator;
+                continue;
+            }
+
+            m_core.DestroyNativeButton(iterator->second);
+            iterator = m_buttonHandles.erase(iterator);
+        }
+    }
+
+    void SyncLabels(const std::vector<NativeLabelDesc>& labels)
+    {
+        std::unordered_set<std::string> seen;
+        seen.reserve(labels.size());
+
+        for (const NativeLabelDesc& desc : labels)
+        {
+            if (desc.name.empty())
+            {
+                continue;
+            }
+
+            seen.insert(desc.name);
+            auto iterator = m_labelHandles.find(desc.name);
+            if (iterator == m_labelHandles.end())
+            {
+                const EngineCore::NativeLabelHandle handle = m_core.CreateNativeLabel(desc);
+                if (handle != 0U)
+                {
+                    m_labelHandles.emplace(desc.name, handle);
+                }
+                continue;
+            }
+
+            const EngineCore::NativeLabelHandle handle = iterator->second;
+            m_core.SetNativeLabelText(handle, desc.text);
+            m_core.SetNativeLabelBounds(handle, desc.rect);
+            m_core.SetNativeLabelVisible(handle, desc.visible);
+            m_core.SetNativeLabelStyle(
+                handle,
+                desc.textColor,
+                desc.backgroundColor,
+                desc.transparentBackground,
+                desc.multiline,
+                desc.alignLeft);
+        }
+
+        for (auto iterator = m_labelHandles.begin(); iterator != m_labelHandles.end();)
+        {
+            if (seen.find(iterator->first) != seen.end())
+            {
+                ++iterator;
+                continue;
+            }
+
+            m_core.DestroyNativeLabel(iterator->second);
+            iterator = m_labelHandles.erase(iterator);
+        }
+    }
+
+    NativeUiPixelRect ResolveRect(
+        const NativeUiButton& button,
+        const NativeUiCanvasMetrics& canvasMetrics) const
+    {
+        const NativeUiCanvasRect rect = button.useAnchor
+            ? ResolveAnchoredCanvasRect(
+                canvasMetrics,
+                button.anchor,
+                button.offsetX,
+                button.offsetY,
+                button.width,
+                button.height)
+            : NativeUiCanvasRect{ button.x, button.y, button.width, button.height };
+        return MapCanvasRectToPixels(canvasMetrics, rect);
+    }
+
+    NativeUiPixelRect ResolveRect(
+        const NativeUiForm& form,
+        const NativeUiCanvasMetrics& canvasMetrics) const
+    {
+        const NativeUiCanvasRect rect = form.useAnchor
+            ? ResolveAnchoredCanvasRect(
+                canvasMetrics,
+                form.anchor,
+                form.offsetX,
+                form.offsetY,
+                form.width,
+                form.height)
+            : NativeUiCanvasRect{ form.x, form.y, form.width, form.height };
+        return MapCanvasRectToPixels(canvasMetrics, rect);
+    }
+
+    NativeUiPixelRect ResolveRect(
+        const NativeUiLabel& label,
+        const NativeUiCanvasMetrics& canvasMetrics) const
+    {
+        const NativeUiCanvasRect rect = label.useAnchor
+            ? ResolveAnchoredCanvasRect(
+                canvasMetrics,
+                label.anchor,
+                label.offsetX,
+                label.offsetY,
+                label.width,
+                label.height)
+            : NativeUiCanvasRect{ label.x, label.y, label.width, label.height };
+        return MapCanvasRectToPixels(canvasMetrics, rect);
+    }
+
+    NativeUiPixelRect ResolveRect(
+        const NativeUiPanel& panel,
+        const NativeUiCanvasMetrics& canvasMetrics) const
+    {
+        const NativeUiCanvasRect rect = ResolveAnchoredCanvasRect(
+            canvasMetrics,
+            panel.anchor,
+            panel.offsetX,
+            panel.offsetY,
+            panel.width,
+            panel.height);
+        return MapCanvasRectToPixels(canvasMetrics, rect);
+    }
+
+    NativeControlRect ToNativeControlRect(const NativeUiPixelRect& rect) const
+    {
+        return NativeControlRect{ rect.x, rect.y, rect.width, rect.height };
     }
 
     EngineCore& m_core;
+    std::unordered_map<std::string, EngineCore::NativeButtonHandle> m_buttonHandles;
+    std::unordered_map<std::string, EngineCore::NativeLabelHandle> m_labelHandles;
 };
 
 class AppSoundCapabilityAdapter final : public IAppSound
@@ -2581,6 +2912,11 @@ bool EngineCore::SetNativeButtonVisible(NativeButtonHandle handle, bool visible)
     return m_nativeUi ? m_nativeUi->SetButtonVisible(handle, visible) : false;
 }
 
+bool EngineCore::SetNativeButtonEnabled(NativeButtonHandle handle, bool enabled)
+{
+    return m_nativeUi ? m_nativeUi->SetButtonEnabled(handle, enabled) : false;
+}
+
 bool EngineCore::ConsumeNativeButtonPressed(NativeButtonHandle handle)
 {
     return m_nativeUi ? m_nativeUi->ConsumeButtonPressed(handle) : false;
@@ -2614,6 +2950,25 @@ bool EngineCore::SetNativeLabelBounds(NativeLabelHandle handle, const NativeCont
 bool EngineCore::SetNativeLabelVisible(NativeLabelHandle handle, bool visible)
 {
     return m_nativeUi ? m_nativeUi->SetLabelVisible(handle, visible) : false;
+}
+
+bool EngineCore::SetNativeLabelStyle(
+    NativeLabelHandle handle,
+    std::uint32_t textColor,
+    std::uint32_t backgroundColor,
+    bool transparentBackground,
+    bool multiline,
+    bool alignLeft)
+{
+    return m_nativeUi
+        ? m_nativeUi->SetLabelStyle(
+            handle,
+            textColor,
+            backgroundColor,
+            transparentBackground,
+            multiline,
+            alignLeft)
+        : false;
 }
 
 bool EngineCore::SyncNativeLabels(const std::vector<NativeLabelDesc>& labels)

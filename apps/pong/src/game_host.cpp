@@ -1,4 +1,7 @@
 #include "game_host.hpp"
+#include "pong_ball_script.hpp"
+#include "pong_paddle_script.hpp"
+#include "scene_manager_script.hpp"
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -13,8 +16,10 @@
 #include "input/input_mouse.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <filesystem>
 #include <string>
+#include <string_view>
 
 bool GameHost::Initialize()
 {
@@ -30,7 +35,13 @@ bool GameHost::Initialize()
     m_sceneManager.AddScene(1, exeDir + "/scene1.scene.json");
 
     AppCapabilities& capabilities = m_bridge.GetCapabilities();
-    m_runtimeHost.SetInputInterface(capabilities.input);
+    pong::SetSceneManagerInput(capabilities.input);
+    RegisterScripts();
+    m_runtimeHost.SetScriptEventSink(
+        [this](const engine::script::ScriptEvent& event)
+        {
+            HandleScriptEvent(event);
+        });
 
     if (!LoadScene(0))
     {
@@ -41,6 +52,43 @@ bool GameHost::Initialize()
     m_bridge.SetEscapeShutdownEnabled(false);
     m_initialized = true;
     return true;
+}
+
+void GameHost::RegisterScripts()
+{
+    engine::script::ScriptPrototype ball;
+    ball.SetName("script.pong_ball").SetFactory(&pong::CreatePongBallScript);
+    m_runtimeHost.RegisterScriptPrototype(ball);
+
+    engine::script::ScriptPrototype paddle;
+    paddle.SetName("script.pong_paddle").SetFactory(&pong::CreatePongPaddleScript);
+    m_runtimeHost.RegisterScriptPrototype(paddle);
+
+    engine::script::ScriptPrototype sceneManager;
+    sceneManager.SetName("script.scene_manager").SetFactory(&pong::CreateSceneManagerScript);
+    m_runtimeHost.RegisterScriptPrototype(sceneManager);
+}
+
+void GameHost::HandleScriptEvent(const engine::script::ScriptEvent& event)
+{
+    if (event.type == "exit")
+    {
+        m_pendingExit = true;
+        return;
+    }
+
+    constexpr std::string_view kGotoScenePrefix = "goto_scene:";
+    if (event.type.size() <= kGotoScenePrefix.size() ||
+        event.type.compare(0, kGotoScenePrefix.size(), kGotoScenePrefix) != 0)
+    {
+        return;
+    }
+
+    try
+    {
+        m_pendingSceneTransition = std::stoi(event.type.substr(kGotoScenePrefix.size()));
+    }
+    catch (...) {}
 }
 
 bool GameHost::LoadScene(int index)
@@ -131,14 +179,17 @@ void GameHost::TickGame()
     m_runtimeHost.Tick(dt, input, viewport);
 
     // Consume scene signals emitted by scripts this frame.
-    const int transition = m_runtimeHost.ConsumeSceneTransition();
+    const int transition = m_pendingSceneTransition;
+    m_pendingSceneTransition = -1;
     if (transition >= 0)
     {
         LoadScene(transition);
         return;
     }
-    if (m_runtimeHost.ConsumeExitRequest())
+
+    if (m_pendingExit)
     {
+        m_pendingExit = false;
         m_bridge.RequestExit();
         return;
     }

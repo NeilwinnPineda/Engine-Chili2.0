@@ -145,6 +145,18 @@ bool NativeUiModule::SetButtonVisible(ButtonHandle handle, bool visible)
     return button->host.SetVisible(visible);
 }
 
+bool NativeUiModule::SetButtonEnabled(ButtonHandle handle, bool enabled)
+{
+    ButtonEntry* button = FindButton(handle);
+    if (!button)
+    {
+        return false;
+    }
+
+    button->desc.enabled = enabled;
+    return button->host.SetEnabled(enabled);
+}
+
 bool NativeUiModule::ConsumeButtonPressed(ButtonHandle handle)
 {
     ButtonEntry* button = FindButton(handle);

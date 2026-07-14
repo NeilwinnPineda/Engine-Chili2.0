@@ -1,5 +1,5 @@
 #include "studio/proxy_library.hpp"
-#include "runtime/default_scene_json.hpp"
+#include "runtime/scene/default_scene_json.hpp"
 
 #include <algorithm>
 #include <filesystem>
